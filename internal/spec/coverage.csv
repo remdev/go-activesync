@@ -52,3 +52,4 @@ MS-ASWBXML/marshal.omitempty,MS-ASWBXML,§2.1.2.1,Marshal honours the ;omitempty
 MS-ASWBXML/marshal.opaque,MS-ASWBXML,§2.1.2.1,Marshal honours the ;opaque option and emits the field value as OPAQUE,required
 MS-ASWBXML/marshal.slice,MS-ASWBXML,§2.1.2.1,Marshal emits one element per slice entry preserving order,required
 MS-ASWBXML/marshal.roundtrip,MS-ASWBXML,§2.1.2.1,Marshal followed by Unmarshal reproduces the input struct verbatim including nested page changes,required
+MS-ASWBXML/decoder.fuzz,MS-ASWBXML,§2.1.2.1,Decoder must not panic on any byte input regardless of malformed structure,required
