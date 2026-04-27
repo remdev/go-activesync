@@ -1,7 +1,7 @@
 # Spec-coverage matrix
 
 This file is a human-readable companion to
-[`internal/spec/coverage.csv`](../internal/spec/coverage.csv) — the source of
+`[internal/spec/coverage.csv](../internal/spec/coverage.csv)` — the source of
 truth that the `speclint` tool consumes in CI.
 
 Every row in the CSV is one atomic spec requirement with a stable `spec_id`.
@@ -12,13 +12,15 @@ matrix.
 
 ## Column reference
 
-| column        | description                                                     |
-|---------------|-----------------------------------------------------------------|
-| `spec_id`     | stable identifier, conventionally `<DOC>/<section>` or similar  |
-| `doc`         | source document, e.g. `MS-ASWBXML`, `OMA-WBXML-1.3`             |
-| `section`     | section anchor, e.g. `§2.1.2.1.1`                               |
-| `requirement` | one-line summary of the atomic requirement                      |
-| `status`      | `required`, `optional`, or `out_of_scope`                       |
+
+| column        | description                                                    |
+| ------------- | -------------------------------------------------------------- |
+| `spec_id`     | stable identifier, conventionally `<DOC>/<section>` or similar |
+| `doc`         | source document, e.g. `MS-ASWBXML`, `OMA-WBXML-1.3`            |
+| `section`     | section anchor, e.g. `§2.1.2.1.1`                              |
+| `requirement` | one-line summary of the atomic requirement                     |
+| `status`      | `required`, `optional`, or `out_of_scope`                      |
+
 
 ## Documents tracked
 
