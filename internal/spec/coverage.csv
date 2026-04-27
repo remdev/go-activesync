@@ -1,0 +1,2 @@
+spec_id,doc,section,requirement,status
+SPEC-LINT/self-test,internal/spec,self-test,bootstrap requirement covered by linter unit tests,required
