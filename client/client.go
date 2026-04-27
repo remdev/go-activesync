@@ -100,8 +100,31 @@ func (e *StatusError) Error() string {
 }
 
 // do issues a single Sync/FolderSync/Ping/Provision command, marshaling
-// request, applying mandatory headers, and unmarshalling the response.
+// request, applying mandatory headers, and unmarshalling the response. It
+// transparently retries the request once after a fresh Provision exchange
+// when the server signals an invalid policy state (Status 142/143). Calls
+// to Provision itself are issued via doOnce to avoid recursion.
 func (c *Client) do(ctx context.Context, cmd byte, user string, request, response any) error {
+	if err := c.doOnce(ctx, cmd, user, request, response); err != nil {
+		var se *StatusError
+		if cmd != CmdProvision && errors.As(err, &se) && eas.ShouldReprovision(se.Status) {
+			if _, perr := c.Provision(ctx, user); perr != nil {
+				return fmt.Errorf("client: re-provision: %w", perr)
+			}
+			if response != nil {
+				if r, ok := response.(interface{ Reset() }); ok {
+					r.Reset()
+				}
+			}
+			return c.doOnce(ctx, cmd, user, request, response)
+		}
+		return err
+	}
+	return nil
+}
+
+// doOnce is a single non-retrying request execution.
+func (c *Client) doOnce(ctx context.Context, cmd byte, user string, request, response any) error {
 	body, err := wbxml.Marshal(request)
 	if err != nil {
 		return fmt.Errorf("client: marshal: %w", err)
@@ -160,7 +183,30 @@ func (c *Client) do(ctx context.Context, cmd byte, user string, request, respons
 			return fmt.Errorf("client: unmarshal: %w", err)
 		}
 	}
+	if response != nil {
+		if s, ok := globalStatus(response); ok && eas.ShouldReprovision(s) {
+			return &StatusError{Command: commandName(cmd), Status: s}
+		}
+	}
 	return nil
+}
+
+// globalStatus extracts a top-level Status field from a typed response, if
+// the response struct exposes one. It is used to translate command-level
+// re-provision codes into a StatusError that the retry layer can recognise;
+// other status values are interpreted by the typed command methods.
+func globalStatus(v any) (int32, bool) {
+	switch r := v.(type) {
+	case *eas.FolderSyncResponse:
+		return r.Status, true
+	case *eas.ProvisionResponse:
+		return r.Status, true
+	case *eas.PingResponse:
+		return r.Status, true
+	case *eas.SyncResponse:
+		return r.Status, true
+	}
+	return 0, false
 }
 
 func (c *Client) policyKey(ctx context.Context) (string, error) {
