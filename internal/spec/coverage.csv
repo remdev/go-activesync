@@ -100,3 +100,4 @@ MS-ASCMD/ping.response,MS-ASCMD,§2.2.1.13,Ping response carries Status and the 
 MS-ASCMD/ping.status.changes,MS-ASCMD,§2.2.1.13.6,Ping Status=2 indicates one or more folders have changes available,required
 MS-ASCMD/global.status.codes,MS-ASCMD,§2.2.4,Global Status codes include 142 invalid policy; 143 invalid policy key; 144 invalid device id,required
 MS-ASCMD/retry.142,MS-ASCMD,§2.2.4,Status 142 triggers automatic re-provision with a fresh PolicyKey before retrying the original command,required
+MS-ASCMD/scenario.full,MS-ASCMD,§3.1,End-to-end Provision -> FolderSync -> Sync -> Ping scenario over HTTP exchanges WBXML payloads with the negotiated PolicyKey and SyncKey,required

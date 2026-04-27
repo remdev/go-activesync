@@ -1,0 +1,325 @@
+package client
+
+import (
+	"context"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/remdev/go-activesync/eas"
+	"github.com/remdev/go-activesync/wbxml"
+)
+
+func newTestClient(t *testing.T, srv *httptest.Server) *Client {
+	t.Helper()
+	c, err := New(Config{
+		BaseURL:    srv.URL + EndpointPath,
+		HTTPClient: srv.Client(),
+		Auth:       &BasicAuth{Username: "user@example.com", Password: "secret"},
+		DeviceID:   "TESTDEVICE",
+		DeviceType: "SmartPhone",
+		UserAgent:  "go-activesync-test/1.0",
+		Locale:     0x0409,
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	return c
+}
+
+func writeWBXML(t *testing.T, w http.ResponseWriter, v any) {
+	t.Helper()
+	data, err := wbxml.Marshal(v)
+	if err != nil {
+		t.Fatalf("server marshal: %v", err)
+	}
+	w.Header().Set("Content-Type", ContentTypeWBXML)
+	if _, err := w.Write(data); err != nil {
+		t.Fatalf("server write: %v", err)
+	}
+}
+
+func decodeWBXML(t *testing.T, r *http.Request, v any) {
+	t.Helper()
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	if err := wbxml.Unmarshal(body, v); err != nil {
+		t.Fatalf("unmarshal body: %v", err)
+	}
+}
+
+// SPEC: MS-ASCMD/scenario.full
+// SPEC: MS-ASPROV/two-phase-flow
+func TestProvision_TwoPhase(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req eas.ProvisionRequest
+		decodeWBXML(t, r, &req)
+		calls++
+		switch calls {
+		case 1:
+			if got := req.Policies.Policy[0].PolicyType; got != eas.PolicyTypeWBXML {
+				t.Errorf("call 1 PolicyType=%q", got)
+			}
+			if r.Header.Get("X-MS-PolicyKey") != "0" {
+				t.Errorf("call 1 X-MS-PolicyKey=%q", r.Header.Get("X-MS-PolicyKey"))
+			}
+			writeWBXML(t, w, &eas.ProvisionResponse{
+				Status: int32(eas.StatusSuccess),
+				Policies: eas.PoliciesResponse{
+					Policy: []eas.PolicyResponse{{
+						PolicyType: eas.PolicyTypeWBXML,
+						PolicyKey:  "111",
+						Status:     int32(eas.StatusSuccess),
+						Data: &eas.EASProvisionDoc{
+							DevicePasswordEnabled:           1,
+							MinDevicePasswordLength:         4,
+							MaxInactivityTimeDeviceLock:     900,
+							MaxDevicePasswordFailedAttempts: 8,
+							AllowSimpleDevicePassword:       1,
+							AllowStorageCard:                1,
+							AllowCamera:                     1,
+							RequireDeviceEncryption:         0,
+							AlphanumericDevicePasswordRequired: 0,
+						},
+					}},
+				},
+			})
+		case 2:
+			if got := req.Policies.Policy[0].PolicyKey; got != "111" {
+				t.Errorf("call 2 PolicyKey=%q", got)
+			}
+			if r.Header.Get("X-MS-PolicyKey") != "111" {
+				t.Errorf("call 2 X-MS-PolicyKey=%q", r.Header.Get("X-MS-PolicyKey"))
+			}
+			writeWBXML(t, w, &eas.ProvisionResponse{
+				Status: int32(eas.StatusSuccess),
+				Policies: eas.PoliciesResponse{
+					Policy: []eas.PolicyResponse{{
+						PolicyType: eas.PolicyTypeWBXML,
+						PolicyKey:  "222",
+						Status:     int32(eas.StatusSuccess),
+					}},
+				},
+			})
+		default:
+			http.Error(w, "unexpected call", 500)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	c := newTestClient(t, srv)
+	doc, err := c.Provision(context.Background(), "user@example.com")
+	if err != nil {
+		t.Fatalf("Provision: %v", err)
+	}
+	if doc == nil || doc.MinDevicePasswordLength != 4 {
+		t.Errorf("policy doc = %+v", doc)
+	}
+	if calls != 2 {
+		t.Errorf("calls = %d, want 2", calls)
+	}
+	got, err := c.PolicyStore.Get(context.Background())
+	if err != nil {
+		t.Fatalf("PolicyStore: %v", err)
+	}
+	if got != "222" {
+		t.Errorf("final PolicyKey = %q, want 222", got)
+	}
+}
+
+// SPEC: MS-ASCMD/scenario.full
+// SPEC: MS-ASCMD/foldersync.response
+func TestFolderSync_Initial(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req eas.FolderSyncRequest
+		decodeWBXML(t, r, &req)
+		if req.SyncKey != "0" {
+			t.Errorf("initial SyncKey = %q", req.SyncKey)
+		}
+		if !strings.Contains(r.URL.RawQuery, "") {
+			t.Errorf("missing query")
+		}
+		if r.Header.Get("MS-ASProtocolVersion") != "14.1" {
+			t.Errorf("MS-ASProtocolVersion = %q", r.Header.Get("MS-ASProtocolVersion"))
+		}
+		writeWBXML(t, w, &eas.FolderSyncResponse{
+			Status:  int32(eas.StatusSuccess),
+			SyncKey: "FS-1",
+			Changes: eas.FolderChanges{
+				Count: 1,
+				Add: []eas.FolderAdd{
+					{ServerID: "1", ParentID: "0", DisplayName: "Inbox", Type: 2},
+				},
+			},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	c := newTestClient(t, srv)
+	resp, err := c.FolderSync(context.Background(), "user@example.com", "0")
+	if err != nil {
+		t.Fatalf("FolderSync: %v", err)
+	}
+	if resp.SyncKey != "FS-1" || len(resp.Changes.Add) != 1 {
+		t.Errorf("unexpected response: %+v", resp)
+	}
+}
+
+// SPEC: MS-ASCMD/retry.142
+func TestFolderSync_AutoReprovision(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		// Detect command by trying to unmarshal as Provision first.
+		var prov eas.ProvisionRequest
+		isProvision := wbxml.Unmarshal(body, &prov) == nil
+		calls++
+		switch {
+		case calls == 1 && !isProvision:
+			writeWBXML(t, w, &eas.FolderSyncResponse{
+				Status:  int32(eas.StatusInvalidPolicy),
+				Changes: eas.FolderChanges{},
+			})
+		case (calls == 2 || calls == 3) && isProvision:
+			pk := "777"
+			if calls == 3 {
+				pk = "888"
+			}
+			writeWBXML(t, w, &eas.ProvisionResponse{
+				Status: int32(eas.StatusSuccess),
+				Policies: eas.PoliciesResponse{
+					Policy: []eas.PolicyResponse{{
+						PolicyType: eas.PolicyTypeWBXML,
+						PolicyKey:  pk,
+						Status:     int32(eas.StatusSuccess),
+					}},
+				},
+			})
+		case calls == 4 && !isProvision:
+			if r.Header.Get("X-MS-PolicyKey") != "888" {
+				t.Errorf("retry X-MS-PolicyKey=%q", r.Header.Get("X-MS-PolicyKey"))
+			}
+			writeWBXML(t, w, &eas.FolderSyncResponse{
+				Status:  int32(eas.StatusSuccess),
+				SyncKey: "FS-OK",
+				Changes: eas.FolderChanges{},
+			})
+		default:
+			http.Error(w, "unexpected", 500)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	c := newTestClient(t, srv)
+	resp, err := c.FolderSync(context.Background(), "user@example.com", "0")
+	if err != nil {
+		t.Fatalf("FolderSync: %v", err)
+	}
+	if resp.SyncKey != "FS-OK" {
+		t.Errorf("SyncKey = %q, want FS-OK", resp.SyncKey)
+	}
+	if calls != 4 {
+		t.Errorf("calls = %d, want 4", calls)
+	}
+}
+
+// SPEC: MS-ASCMD/scenario.full
+// SPEC: MS-ASCMD/sync.response
+func TestSync_RoundTrip(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req eas.SyncRequest
+		decodeWBXML(t, r, &req)
+		if len(req.Collections.Collection) != 1 || req.Collections.Collection[0].CollectionID != "1" {
+			t.Errorf("unexpected sync request: %+v", req)
+		}
+		writeWBXML(t, w, &eas.SyncResponse{
+			Collections: eas.SyncCollections{
+				Collection: []eas.SyncCollection{{
+					SyncKey:      "S-1",
+					CollectionID: "1",
+					Status:       int32(eas.SyncStatusSuccess),
+				}},
+			},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	c := newTestClient(t, srv)
+	req := &eas.SyncRequest{
+		Collections: eas.SyncCollections{
+			Collection: []eas.SyncCollection{{
+				SyncKey:      "0",
+				CollectionID: "1",
+				GetChanges:   1,
+				WindowSize:   25,
+			}},
+		},
+	}
+	resp, err := c.Sync(context.Background(), "user@example.com", req)
+	if err != nil {
+		t.Fatalf("Sync: %v", err)
+	}
+	if resp.Collections.Collection[0].SyncKey != "S-1" {
+		t.Errorf("SyncKey = %q", resp.Collections.Collection[0].SyncKey)
+	}
+}
+
+// SPEC: MS-ASCMD/ping.response
+// SPEC: MS-ASCMD/ping.status.changes
+func TestPing_ChangesAvailable(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req eas.PingRequest
+		decodeWBXML(t, r, &req)
+		if req.HeartbeatInterval != 60 {
+			t.Errorf("HeartbeatInterval = %d", req.HeartbeatInterval)
+		}
+		writeWBXML(t, w, &eas.PingResponse{
+			Status: 2,
+			Folders: eas.PingResponseFolders{
+				Folder: []string{"1"},
+			},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	c := newTestClient(t, srv)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	resp, err := c.Ping(ctx, "user@example.com", &eas.PingRequest{
+		HeartbeatInterval: 60,
+		Folders: eas.PingFolders{
+			Folder: []eas.PingFolder{{ID: "1", Class: "Email"}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Ping: %v", err)
+	}
+	if !eas.PingHasChanges(resp.Status) {
+		t.Errorf("Ping not signalling changes: %+v", resp)
+	}
+}
+
+// SPEC: MS-ASCMD/scenario.full
+func TestPing_ContextCancel(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}))
+	t.Cleanup(srv.Close)
+
+	c := newTestClient(t, srv)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := c.Ping(ctx, "user@example.com", &eas.PingRequest{
+		HeartbeatInterval: 60,
+		Folders:           eas.PingFolders{Folder: []eas.PingFolder{{ID: "1", Class: "Email"}}},
+	})
+	if err == nil {
+		t.Fatalf("Ping with cancelled ctx: expected error")
+	}
+}
