@@ -78,11 +78,11 @@ func EncodeTag(identity byte, hasAttributes, hasContent bool) byte {
 	return out
 }
 
-// WriteMbUint32 writes v as a multi-byte integer per OMA-WBXML 1.3 §5.1.
-//
-// The encoding splits v into 7-bit groups, big-endian, with the high bit of
-// every byte except the last one set. The shortest possible encoding is used.
-func WriteMbUint32(w io.ByteWriter, v uint32) error {
+// AppendMbUint32 appends v as a multi-byte integer per OMA-WBXML 1.3 §5.1
+// to dst and returns the extended slice. The encoding splits v into 7-bit
+// groups, big-endian, with the high bit of every byte except the last set.
+// The shortest possible encoding is used.
+func AppendMbUint32(dst []byte, v uint32) []byte {
 	var buf [5]byte
 	i := len(buf) - 1
 	buf[i] = byte(v) & 0x7F
@@ -92,12 +92,16 @@ func WriteMbUint32(w io.ByteWriter, v uint32) error {
 		buf[i] = byte(v)&0x7F | 0x80
 		v >>= 7
 	}
-	for ; i < len(buf); i++ {
-		if err := w.WriteByte(buf[i]); err != nil {
-			return err
-		}
-	}
-	return nil
+	return append(dst, buf[i:]...)
+}
+
+// WriteMbUint32 writes v as a multi-byte integer per OMA-WBXML 1.3 §5.1.
+//
+// It is provided for backwards compatibility with code that has only an
+// io.Writer at hand; new code should prefer AppendMbUint32.
+func WriteMbUint32(w io.Writer, v uint32) error {
+	_, err := w.Write(AppendMbUint32(nil, v))
+	return err
 }
 
 // ReadMbUint32 reads a multi-byte integer from r and returns its value plus
@@ -137,25 +141,13 @@ type Header struct {
 
 // Write serialises h to w.
 func (h *Header) Write(w io.Writer) error {
-	bw := byteWriter(w)
-	if err := bw.WriteByte(h.Version); err != nil {
-		return err
-	}
-	if err := WriteMbUint32(bw, h.PublicID); err != nil {
-		return err
-	}
-	if err := WriteMbUint32(bw, h.Charset); err != nil {
-		return err
-	}
-	if err := WriteMbUint32(bw, uint32(len(h.StringTable))); err != nil {
-		return err
-	}
-	if len(h.StringTable) > 0 {
-		if _, err := w.Write(h.StringTable); err != nil {
-			return err
-		}
-	}
-	return nil
+	buf := []byte{h.Version}
+	buf = AppendMbUint32(buf, h.PublicID)
+	buf = AppendMbUint32(buf, h.Charset)
+	buf = AppendMbUint32(buf, uint32(len(h.StringTable)))
+	buf = append(buf, h.StringTable...)
+	_, err := w.Write(buf)
+	return err
 }
 
 // Read parses the header from r.

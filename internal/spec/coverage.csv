@@ -47,7 +47,7 @@ MS-ASWBXML/decoder.tag,MS-ASWBXML,§2.1.2.1,Decoder yields tag tokens already re
 MS-ASWBXML/decoder.switch-page,MS-ASWBXML,§2.1.2.1,Decoder transparently consumes SWITCH_PAGE bytes and reflects the new page on subsequent tag tokens,required
 MS-ASWBXML/decoder.string,MS-ASWBXML,§2.1.2.1,Decoder reads STR_I as UTF-8 NUL-terminated string and STR_T as offset into the document string-table,required
 MS-ASWBXML/decoder.opaque,MS-ASWBXML,§2.1.2.1,Decoder reads OPAQUE payloads as a length-prefixed byte slice,required
-MS-ASWBXML/marshal.tag-resolution,MS-ASWBXML,§2.1.2.1,Marshal resolves struct tag wbxml:\"Page.Tag\" via the registered code page tables,required
+MS-ASWBXML/marshal.tag-resolution,MS-ASWBXML,§2.1.2.1,Marshal resolves struct tag wbxml=Page.Tag via the registered code page tables,required
 MS-ASWBXML/marshal.omitempty,MS-ASWBXML,§2.1.2.1,Marshal honours the ;omitempty option and skips zero-valued fields,required
 MS-ASWBXML/marshal.opaque,MS-ASWBXML,§2.1.2.1,Marshal honours the ;opaque option and emits the field value as OPAQUE,required
 MS-ASWBXML/marshal.slice,MS-ASWBXML,§2.1.2.1,Marshal emits one element per slice entry preserving order,required
