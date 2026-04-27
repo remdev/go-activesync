@@ -5,7 +5,7 @@ OMA-WBXML-1.3/header.publicid,OMA-WBXML-1.3,§5.4,WBXML publicid is encoded as m
 OMA-WBXML-1.3/header.charset,OMA-WBXML-1.3,§5.4,WBXML charset is encoded as mb_u_int32 IANA MIBenum (106 = UTF-8),required
 OMA-WBXML-1.3/header.stringtable,OMA-WBXML-1.3,§5.4,WBXML string-table is mb_u_int32 length followed by raw bytes,required
 OMA-WBXML-1.3/mb_u_int32.encoding,OMA-WBXML-1.3,§5.1,mb_u_int32 is big-endian 7-bit groups with continuation bit 0x80,required
-OMA-WBXML-1.3/mb_u_int32.boundaries,OMA-WBXML-1.3,§5.1,mb_u_int32 round-trip boundaries: 0, 0x7F, 0x80, 0x3FFF, 0x4000, 0x1FFFFF, 0xFFFFFFFF,required
+OMA-WBXML-1.3/mb_u_int32.boundaries,OMA-WBXML-1.3,§5.1,"mb_u_int32 round-trip boundaries 0; 0x7F; 0x80; 0x3FFF; 0x4000; 0x1FFFFF; 0xFFFFFFFF",required
 OMA-WBXML-1.3/global.SWITCH_PAGE,OMA-WBXML-1.3,§5.5,SWITCH_PAGE token = 0x00 followed by 1 byte page index,required
 OMA-WBXML-1.3/global.END,OMA-WBXML-1.3,§5.5,END token = 0x01 closes the most recent open element,required
 OMA-WBXML-1.3/global.STR_I,OMA-WBXML-1.3,§5.5,STR_I token = 0x03 followed by NUL-terminated UTF-8 string,required
