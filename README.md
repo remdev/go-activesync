@@ -177,7 +177,13 @@ make cover      # go test -race -coverprofile=cover.out
 make cover-gate # enforce per-package coverage thresholds
 make fuzz       # short FuzzDecode smoke run
 make all        # vet + lint + test + cover-gate
+make ci         # run the exact CI pipeline locally (mod verify, vet, lint,
+                # race tests, cover-gate, spec-lint, fuzz smoke)
 ```
+
+Always run `make ci` before pushing or opening a PR — it mirrors
+`.github/workflows/ci.yml` step-for-step. See [`AGENTS.md`](AGENTS.md) for
+the full contributor checklist.
 
 The configured linter set (see [`.golangci.yml`](.golangci.yml)) bundles
 `staticcheck`, `govet`, `errcheck`, `revive`, `gosec`, `gocritic`,

@@ -124,6 +124,26 @@ func TestEncoder_OpaqueWriteError(t *testing.T) {
 	}
 }
 
+// SPEC: MS-ASWBXML/encoder.string
+func TestEncoder_StrIBodyWriteError(t *testing.T) {
+	// firstWriteOK with allowed=1 lets the leading STR_I byte through and then
+	// fails on the body write, exercising the io.WriteString error branch.
+	enc := NewEncoder(&firstWriteOK{allowed: 1})
+	if err := enc.StrI("payload"); err == nil {
+		t.Fatal("expected body write error")
+	}
+}
+
+// SPEC: MS-ASWBXML/encoder.string
+func TestEncoder_StrITrailingNULError(t *testing.T) {
+	// allowed=2 lets the STR_I byte and the body through; the trailing NUL
+	// write then fails.
+	enc := NewEncoder(&firstWriteOK{allowed: 2})
+	if err := enc.StrI("ok"); err == nil {
+		t.Fatal("expected trailing-NUL write error")
+	}
+}
+
 // SPEC: MS-ASWBXML/encoder.switch-page
 func TestEncoder_StartTagSwitchError(t *testing.T) {
 	// firstWriteOK with allowed=0 fails on the very first Write, exposing the

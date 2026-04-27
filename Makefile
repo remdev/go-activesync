@@ -7,9 +7,20 @@ PKG             ?= ./...
 COVER           ?= cover.out
 FUZZTIME        ?= 30s
 
-.PHONY: all test race vet lint lint-fix spec-lint cover cover-gate fuzz tidy clean tools
+.PHONY: all test race vet lint lint-fix spec-lint cover cover-gate fuzz fuzz-smoke tidy clean tools ci
 
 all: vet lint test cover-gate
+
+# ci mirrors the steps run by .github/workflows/ci.yml so that
+# `make ci` failing locally implies the same failure in CI.
+ci: tools
+	$(GO) mod verify
+	$(GO) vet $(PKG)
+	$(GOLANGCI_LINT) run $(PKG)
+	$(GO) test -race -count=1 -covermode=atomic -coverprofile=$(COVER) $(PKG)
+	$(GO) run ./internal/spec/cmd/covergate $(COVER)
+	$(GO) run ./internal/spec/cmd/speclint
+	$(GO) test ./wbxml -run='^$$' -fuzz=FuzzDecode -fuzztime=$(FUZZTIME)
 
 test:
 	$(GO) test -count=1 $(PKG)

@@ -10,12 +10,13 @@ import (
 // MaxOpaqueSize bounds the in-memory size of a single OPAQUE payload that the
 // decoder is willing to allocate. EAS payloads in practice are well under one
 // megabyte; the cap guards against pathological inputs (notably from fuzzing)
-// that would otherwise request multi-gigabyte allocations.
-const MaxOpaqueSize = 64 << 20 // 64 MiB
+// that would otherwise request multi-gigabyte allocations. It is exposed as a
+// var rather than a const so callers (and tests) may tune it.
+var MaxOpaqueSize uint32 = 64 << 20 // 64 MiB
 
 // MaxInlineStringSize bounds the in-memory size of a single inline (STR_I)
 // string. The same rationale as MaxOpaqueSize applies.
-const MaxInlineStringSize = 16 << 20 // 16 MiB
+var MaxInlineStringSize = 16 << 20 // 16 MiB
 
 // TokenKind classifies a logical WBXML token after SWITCH_PAGE handling.
 type TokenKind int

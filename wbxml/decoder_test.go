@@ -175,6 +175,42 @@ func TestDecoder_StrIUnterminated(t *testing.T) {
 }
 
 // SPEC: MS-ASWBXML/decoder.tag
+func TestDecoder_OpaqueExceedsLimit(t *testing.T) {
+	// The cap check fires before allocation, so we don't need to actually
+	// supply that many bytes.
+	defer swapMaxOpaqueSize(8)()
+	buf := append([]byte{Opaque}, AppendMbUint32(nil, 9)...)
+	d := NewDecoder(bytes.NewReader(buf))
+	_, err := d.NextToken()
+	if err == nil || !strings.Contains(err.Error(), "exceeds") {
+		t.Fatalf("expected OPAQUE limit error, got %v", err)
+	}
+}
+
+// SPEC: MS-ASWBXML/decoder.tag
+func TestDecoder_StrIExceedsLimit(t *testing.T) {
+	defer swapMaxInlineStringSize(4)()
+	// Five non-NUL bytes ⇒ buffer would grow beyond the cap of 4.
+	d := NewDecoder(bytes.NewReader([]byte{StrI, 'a', 'b', 'c', 'd', 'e', 0}))
+	_, err := d.NextToken()
+	if err == nil || !strings.Contains(err.Error(), "exceeds") {
+		t.Fatalf("expected STR_I limit error, got %v", err)
+	}
+}
+
+func swapMaxOpaqueSize(v uint32) func() {
+	old := MaxOpaqueSize
+	MaxOpaqueSize = v
+	return func() { MaxOpaqueSize = old }
+}
+
+func swapMaxInlineStringSize(v int) func() {
+	old := MaxInlineStringSize
+	MaxInlineStringSize = v
+	return func() { MaxInlineStringSize = old }
+}
+
+// SPEC: MS-ASWBXML/decoder.tag
 func TestDecoder_StringTableLookup(t *testing.T) {
 	// Header with table "hi\0bye\0".
 	var buf bytes.Buffer

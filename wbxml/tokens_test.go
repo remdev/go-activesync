@@ -233,6 +233,19 @@ func TestHeader_StringTableLargerStrings(t *testing.T) {
 	}
 }
 
+// SPEC: OMA-WBXML-1.3/header.stringtable
+func TestHeader_StringTableExceedsLimit(t *testing.T) {
+	old := MaxStringTableSize
+	MaxStringTableSize = 4
+	defer func() { MaxStringTableSize = old }()
+	// version=1.3, publicid=1, charset=UTF-8, stringtable len=10 (no payload bytes
+	// needed because the cap check fires before io.ReadFull).
+	raw := []byte{0x03, 0x01, 0x6A, 0x0A}
+	if err := (&Header{}).Read(bytes.NewReader(raw)); err == nil {
+		t.Fatal("expected string-table limit error")
+	}
+}
+
 // SPEC: OMA-WBXML-1.3/header.version
 func TestHeader_StringTableReadError(t *testing.T) {
 	src := bytes.NewReader([]byte{0x03, 0x01, 0x6A, 0x05, 'a', 'b'})
