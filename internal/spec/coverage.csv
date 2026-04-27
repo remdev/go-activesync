@@ -67,3 +67,12 @@ MS-ASHTTP/headers.accept-language,MS-ASHTTP,§2.2.2,Accept-Language header is ho
 MS-ASHTTP/auth.basic,MS-ASHTTP,§2.2.2,Authorization Basic header carries username:password base64-encoded,required
 MS-ASHTTP/store.policy,MS-ASHTTP,§2.2.2,PolicyStore Get/Set persist the current policy key across calls,required
 MS-ASHTTP/store.syncstate,MS-ASHTTP,§2.2.2,SyncStateStore Get/Set persist the current SyncKey per collection,required
+MS-OXDISCO/request.schema,MS-OXDISCO,§3.1.5,POX request uses mobilesync requestschema 2006 and AcceptableResponseSchema is the matching responseschema,required
+MS-OXDISCO/request.path,MS-OXDISCO,§3.1.4,POST /autodiscover/autodiscover.xml as Content-Type text/xml UTF-8,required
+MS-OXDISCO/response.url,MS-OXDISCO,§3.1.5,Response Action/Settings/Server with Type MobileSync exposes the EAS endpoint URL,required
+MS-OXDISCO/response.redirect-url,MS-OXDISCO,§3.1.5,Response Action/Redirect carries a new autodiscover URL the client must follow,required
+MS-OXDISCO/response.redirect-addr,MS-OXDISCO,§3.1.5,Response Action/RedirectAddr carries a new e-mail address the client must restart from,required
+MS-OXDISCO/response.error,MS-OXDISCO,§3.1.5,Response Error/Status non-zero is surfaced as an error to the caller,required
+MS-OXDISCO/transport.candidates,MS-OXDISCO,§3.1.4,Discovery tries the autodiscover subdomain then the apex domain over HTTPS in order,required
+MS-OXDISCO/transport.302,MS-OXDISCO,§3.1.4,Discovery follows HTTP 302 redirects to a different host,required
+MS-OXDISCO/transport.srv,MS-OXDISCO,§3.1.4,Discovery falls back to DNS SRV _autodiscover._tcp.<domain> when both HTTPS candidates fail,required
