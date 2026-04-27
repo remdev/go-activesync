@@ -187,6 +187,9 @@ func (h *Header) Read(r io.Reader) error {
 		h.StringTable = nil
 		return nil
 	}
+	if stLen > maxStringTableSize {
+		return fmt.Errorf("wbxml: string-table length %d exceeds %d-byte limit", stLen, maxStringTableSize)
+	}
 	st := make([]byte, stLen)
 	if _, err := io.ReadFull(r, st); err != nil {
 		return err
@@ -194,3 +197,8 @@ func (h *Header) Read(r io.Reader) error {
 	h.StringTable = st
 	return nil
 }
+
+// maxStringTableSize bounds the in-memory size of the per-document WBXML
+// string table. Real EAS documents have at most a few hundred bytes here; the
+// cap exists to neutralise pathological mb_u_int32 lengths from fuzzed input.
+const maxStringTableSize = 16 << 20 // 16 MiB

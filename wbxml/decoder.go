@@ -7,6 +7,16 @@ import (
 	"io"
 )
 
+// MaxOpaqueSize bounds the in-memory size of a single OPAQUE payload that the
+// decoder is willing to allocate. EAS payloads in practice are well under one
+// megabyte; the cap guards against pathological inputs (notably from fuzzing)
+// that would otherwise request multi-gigabyte allocations.
+const MaxOpaqueSize = 64 << 20 // 64 MiB
+
+// MaxInlineStringSize bounds the in-memory size of a single inline (STR_I)
+// string. The same rationale as MaxOpaqueSize applies.
+const MaxInlineStringSize = 16 << 20 // 16 MiB
+
 // TokenKind classifies a logical WBXML token after SWITCH_PAGE handling.
 type TokenKind int
 
@@ -114,6 +124,9 @@ func (d *Decoder) NextToken() (Token, error) {
 			if err != nil {
 				return Token{}, err
 			}
+			if n > MaxOpaqueSize {
+				return Token{}, fmt.Errorf("wbxml: OPAQUE length %d exceeds %d-byte limit", n, MaxOpaqueSize)
+			}
 			payload := make([]byte, n)
 			if _, err := io.ReadFull(d.r, payload); err != nil {
 				return Token{}, err
@@ -148,6 +161,9 @@ func readNulString(r io.ByteReader) (string, error) {
 		}
 		if b == 0x00 {
 			return string(buf), nil
+		}
+		if len(buf) >= MaxInlineStringSize {
+			return "", fmt.Errorf("wbxml: STR_I exceeds %d-byte limit", MaxInlineStringSize)
 		}
 		buf = append(buf, b)
 	}
