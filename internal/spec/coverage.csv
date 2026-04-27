@@ -12,3 +12,29 @@ OMA-WBXML-1.3/global.STR_I,OMA-WBXML-1.3,§5.5,STR_I token = 0x03 followed by NU
 OMA-WBXML-1.3/global.STR_T,OMA-WBXML-1.3,§5.5,STR_T token = 0x83 followed by mb_u_int32 string-table offset,required
 OMA-WBXML-1.3/global.OPAQUE,OMA-WBXML-1.3,§5.5,OPAQUE token = 0xC3 followed by mb_u_int32 length and that many raw bytes,required
 OMA-WBXML-1.3/tag.bits,OMA-WBXML-1.3,§5.8.4.2,tag byte bit7 = has content; bit6 = has attributes; bits0-5 = tag identity within the active code page,required
+MS-ASWBXML/codepage.0.AirSync,MS-ASWBXML,§2.1.2.1.1,Code page 0 carries AirSync element tags including Sync,required
+MS-ASWBXML/codepage.1.Contacts,MS-ASWBXML,§2.1.2.1.2,Code page 1 carries Contacts element tags including FirstName/LastName/Email1Address,required
+MS-ASWBXML/codepage.2.Email,MS-ASWBXML,§2.1.2.1.3,Code page 2 carries Email element tags including Subject/From/To/DateReceived,required
+MS-ASWBXML/codepage.3.AirNotify,MS-ASWBXML,§2.1.2.1.4,Code page 3 (AirNotify) reserved for legacy compatibility,required
+MS-ASWBXML/codepage.4.Calendar,MS-ASWBXML,§2.1.2.1.5,Code page 4 carries Calendar element tags including StartTime/EndTime/Subject,required
+MS-ASWBXML/codepage.5.Move,MS-ASWBXML,§2.1.2.1.6,Code page 5 carries MoveItems element tags,required
+MS-ASWBXML/codepage.6.GetItemEstimate,MS-ASWBXML,§2.1.2.1.7,Code page 6 carries GetItemEstimate element tags,required
+MS-ASWBXML/codepage.7.FolderHierarchy,MS-ASWBXML,§2.1.2.1.8,Code page 7 carries FolderHierarchy element tags including FolderSync/FolderCreate,required
+MS-ASWBXML/codepage.8.MeetingResponse,MS-ASWBXML,§2.1.2.1.9,Code page 8 carries MeetingResponse element tags,required
+MS-ASWBXML/codepage.9.Tasks,MS-ASWBXML,§2.1.2.1.10,Code page 9 carries Tasks element tags including Subject/StartDate/DueDate,required
+MS-ASWBXML/codepage.10.ResolveRecipients,MS-ASWBXML,§2.1.2.1.11,Code page 10 carries ResolveRecipients element tags,required
+MS-ASWBXML/codepage.11.ValidateCert,MS-ASWBXML,§2.1.2.1.12,Code page 11 carries ValidateCert element tags,required
+MS-ASWBXML/codepage.12.Contacts2,MS-ASWBXML,§2.1.2.1.13,Code page 12 carries Contacts2 element tags including IMAddress/CustomerId,required
+MS-ASWBXML/codepage.13.Ping,MS-ASWBXML,§2.1.2.1.14,Code page 13 carries Ping element tags including HeartbeatInterval/Folders,required
+MS-ASWBXML/codepage.14.Provision,MS-ASWBXML,§2.1.2.1.15,Code page 14 carries Provision element tags including PolicyKey/EASProvisionDoc,required
+MS-ASWBXML/codepage.15.Search,MS-ASWBXML,§2.1.2.1.16,Code page 15 carries Search element tags,required
+MS-ASWBXML/codepage.16.GAL,MS-ASWBXML,§2.1.2.1.17,Code page 16 carries GAL element tags,required
+MS-ASWBXML/codepage.17.AirSyncBase,MS-ASWBXML,§2.1.2.1.18,Code page 17 carries AirSyncBase element tags including Body/BodyPreference/Attachments,required
+MS-ASWBXML/codepage.18.Settings,MS-ASWBXML,§2.1.2.1.19,Code page 18 carries Settings element tags,required
+MS-ASWBXML/codepage.19.DocumentLibrary,MS-ASWBXML,§2.1.2.1.20,Code page 19 carries DocumentLibrary element tags,required
+MS-ASWBXML/codepage.20.ItemOperations,MS-ASWBXML,§2.1.2.1.21,Code page 20 carries ItemOperations element tags,required
+MS-ASWBXML/codepage.21.ComposeMail,MS-ASWBXML,§2.1.2.1.22,Code page 21 carries ComposeMail element tags including SendMail/SmartReply/SmartForward,required
+MS-ASWBXML/codepage.22.Email2,MS-ASWBXML,§2.1.2.1.23,Code page 22 carries Email2 element tags including UmCallerID/UmUserNotes,required
+MS-ASWBXML/codepage.23.Notes,MS-ASWBXML,§2.1.2.1.24,Code page 23 carries Notes element tags including Subject/MessageClass,required
+MS-ASWBXML/codepage.24.RightsManagement,MS-ASWBXML,§2.1.2.1.25,Code page 24 carries RightsManagement element tags including RightsManagementSupport/RightsManagementLicense,required
+MS-ASWBXML/codepage.invariants,MS-ASWBXML,§2.1.2.1,every tag in every code page has a unique 6-bit token within that page and unique name; lookups round-trip both ways,required
