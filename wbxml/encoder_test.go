@@ -2,6 +2,7 @@ package wbxml
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 )
 
@@ -85,4 +86,72 @@ func TestEncoder_RejectsUnknownPage(t *testing.T) {
 	if err := enc.StartTag(0xFE, 0x05, false, true); err == nil {
 		t.Fatalf("StartTag with unknown page: expected error, got nil")
 	}
+}
+
+// SPEC: MS-ASWBXML/encoder.switch-page
+func TestEncoder_StartTagUnknownPage(t *testing.T) {
+	enc := NewEncoder(&bytes.Buffer{})
+	if err := enc.StartTag(0xFF, 0x05, false, true); err == nil {
+		t.Fatal("expected unknown page error")
+	}
+}
+
+// SPEC: MS-ASWBXML/encoder.switch-page
+func TestEncoder_WriteHeader(t *testing.T) {
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+	if err := enc.WriteHeader(Header{Version: 0x03, PublicID: 0x01, Charset: 0x6A}); err != nil {
+		t.Fatalf("WriteHeader: %v", err)
+	}
+	if buf.Len() == 0 {
+		t.Fatal("empty header")
+	}
+}
+
+// SPEC: MS-ASWBXML/encoder.switch-page
+func TestEncoder_StrIWriteError(t *testing.T) {
+	enc := NewEncoder(failingWriter{})
+	if err := enc.StrI("x"); err == nil {
+		t.Fatal("expected write error")
+	}
+}
+
+// SPEC: MS-ASWBXML/encoder.switch-page
+func TestEncoder_OpaqueWriteError(t *testing.T) {
+	enc := NewEncoder(failingWriter{})
+	if err := enc.Opaque([]byte{1}); err == nil {
+		t.Fatal("expected write error")
+	}
+}
+
+// SPEC: MS-ASWBXML/encoder.switch-page
+func TestEncoder_StartTagSwitchError(t *testing.T) {
+	// firstWriteOK with allowed=0 fails on the very first Write, exposing the
+	// SWITCH_PAGE branch's error propagation.
+	enc := NewEncoder(&firstWriteOK{})
+	if err := enc.StartTag(2 /* Email */, 0x05, false, false); err == nil {
+		t.Fatal("expected SWITCH_PAGE write failure")
+	}
+}
+
+// failingWriter rejects every Write call, exposing error paths in encoder
+// helpers that bypass the normal byte-buffer Writer.
+type failingWriter struct{}
+
+func (failingWriter) Write(p []byte) (int, error) { return 0, errForcedWrite }
+
+var errForcedWrite = errors.New("forced write error")
+
+// firstWriteOK rejects writes once its allowed budget is exhausted; with the
+// default zero budget it fails on the very first Write.
+type firstWriteOK struct {
+	allowed int
+}
+
+func (f *firstWriteOK) Write(p []byte) (int, error) {
+	if f.allowed <= 0 {
+		return 0, errors.New("blocked")
+	}
+	f.allowed--
+	return len(p), nil
 }

@@ -376,6 +376,39 @@ func TestCodePages_LookupMissingReturnsFalse(t *testing.T) {
 }
 
 // SPEC: MS-ASWBXML/codepage.invariants
+func TestCodepages_TagLookup(t *testing.T) {
+	if name, ok := TagByToken(0, 0x05); !ok || name != "Sync" {
+		t.Fatalf("TagByToken(0,0x05) = %q,%v", name, ok)
+	}
+	if _, ok := TagByToken(99, 0x05); ok {
+		t.Fatal("expected unknown page miss")
+	}
+	if tok, ok := TokenByTag(0, "Sync"); !ok || tok != 0x05 {
+		t.Fatalf("TokenByTag(0,Sync) = %02X,%v", tok, ok)
+	}
+	if _, ok := TokenByTag(0, "BogusTag"); ok {
+		t.Fatal("expected unknown tag miss")
+	}
+	if _, ok := TokenByTag(99, "Sync"); ok {
+		t.Fatal("expected unknown page miss")
+	}
+}
+
+// SPEC: MS-ASWBXML/codepage.invariants
+func TestPageByID_Unknown(t *testing.T) {
+	if _, ok := PageByID(99); ok {
+		t.Fatal("expected unknown page miss")
+	}
+}
+
+// SPEC: MS-ASWBXML/codepage.invariants
+func TestPageByName_Unknown(t *testing.T) {
+	if _, ok := PageByName("Bogus"); ok {
+		t.Fatal("expected unknown page miss")
+	}
+}
+
+// SPEC: MS-ASWBXML/codepage.invariants
 func TestCodePages_AllPageIDsRegistered(t *testing.T) {
 	got := AllPageIDs()
 	sort.Slice(got, func(i, j int) bool { return got[i] < got[j] })

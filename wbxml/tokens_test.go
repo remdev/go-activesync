@@ -1,6 +1,7 @@
 package wbxml
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"io"
@@ -166,4 +167,139 @@ func TestHeader_StringTable(t *testing.T) {
 	if !bytes.Equal(got.StringTable, h.StringTable) {
 		t.Fatalf("Header.Read StringTable = % X, want % X", got.StringTable, h.StringTable)
 	}
+}
+
+// SPEC: OMA-WBXML-1.3/header.version
+func TestHeader_StringTable_RoundTripShort(t *testing.T) {
+	src := Header{Version: 0x03, PublicID: 0x01, Charset: 0x6A, StringTable: []byte("a\x00b\x00")}
+	var buf bytes.Buffer
+	if err := src.Write(&buf); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	var got Header
+	if err := got.Read(&buf); err != nil {
+		t.Fatalf("Read: %v", err)
+	}
+	if !bytes.Equal(got.StringTable, src.StringTable) {
+		t.Fatalf("StringTable=%v want %v", got.StringTable, src.StringTable)
+	}
+}
+
+// SPEC: OMA-WBXML-1.3/header.version
+func TestHeader_PublicIDFromTable(t *testing.T) {
+	// Encoded form: version, 0x00, mbu(7), charset, table-len 0.
+	raw := []byte{0x03, 0x00, 0x07, 0x6A, 0x00}
+	var h Header
+	if err := h.Read(bytes.NewReader(raw)); err != nil {
+		t.Fatalf("Read: %v", err)
+	}
+	if h.PublicID != 7 {
+		t.Fatalf("PublicID = %d", h.PublicID)
+	}
+}
+
+// SPEC: OMA-WBXML-1.3/header.version
+func TestHeader_ReadTruncated(t *testing.T) {
+	cases := [][]byte{
+		{},                                 // no version
+		{0x03},                             // missing public id
+		{0x03, 0x00},                       // missing public-id offset after 0
+		{0x03, 0x01},                       // missing charset
+		{0x03, 0x01, 0x6A},                 // missing string-table length
+		{0x03, 0x01, 0x6A, 0x05, 'a', 'b'}, // truncated string table
+	}
+	for i, raw := range cases {
+		var h Header
+		if err := h.Read(bytes.NewReader(raw)); err == nil {
+			t.Errorf("case %d: expected error", i)
+		}
+	}
+}
+
+// SPEC: OMA-WBXML-1.3/header.version
+func TestHeader_StringTableLargerStrings(t *testing.T) {
+	src := Header{Version: 0x03, PublicID: 0x01, Charset: 0x6A, StringTable: bytes.Repeat([]byte{'a'}, 200)}
+	src.StringTable = append(src.StringTable, 0)
+	var buf bytes.Buffer
+	if err := src.Write(&buf); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	var got Header
+	if err := got.Read(&buf); err != nil {
+		t.Fatalf("Read: %v", err)
+	}
+	if !bytes.Equal(got.StringTable, src.StringTable) {
+		t.Fatal("StringTable mismatch")
+	}
+}
+
+// SPEC: OMA-WBXML-1.3/header.version
+func TestHeader_StringTableReadError(t *testing.T) {
+	src := bytes.NewReader([]byte{0x03, 0x01, 0x6A, 0x05, 'a', 'b'})
+	if err := (&Header{}).Read(&stallReader{r: src}); err == nil {
+		t.Fatal("expected string-table read error")
+	}
+}
+
+// SPEC: MS-ASWBXML/encoder.switch-page
+func TestHeader_WriteError(t *testing.T) {
+	if err := (&Header{Version: 0x03, PublicID: 0x01, Charset: 0x6A}).Write(&firstWriteOK{}); err == nil {
+		t.Fatal("expected write failure")
+	}
+}
+
+// SPEC: OMA-WBXML-1.3/mb_u_int32.encoding
+func TestReadMbUint32_Errors(t *testing.T) {
+	// 6 bytes with high bit set → too long.
+	br := bufio.NewReader(bytes.NewReader([]byte{0x80, 0x80, 0x80, 0x80, 0x80, 0x01}))
+	if _, _, err := ReadMbUint32(br); err == nil {
+		t.Fatal("expected too-long error")
+	}
+	// EOF before any byte.
+	br2 := bufio.NewReader(bytes.NewReader(nil))
+	if _, _, err := ReadMbUint32(br2); err == nil {
+		t.Fatal("expected EOF error")
+	}
+	// EOF mid-sequence.
+	br3 := bufio.NewReader(bytes.NewReader([]byte{0x80}))
+	if _, _, err := ReadMbUint32(br3); err == nil {
+		t.Fatal("expected unexpected EOF error")
+	}
+}
+
+// SPEC: OMA-WBXML-1.3/mb_u_int32.encoding
+func TestWriteMbUint32_RoundTripSingle(t *testing.T) {
+	var buf bytes.Buffer
+	if err := WriteMbUint32(&buf, 300); err != nil {
+		t.Fatalf("WriteMbUint32: %v", err)
+	}
+	got, n, err := ReadMbUint32(bufio.NewReader(&buf))
+	if err != nil || got != 300 {
+		t.Fatalf("round-trip got %d (n=%d, err=%v)", got, n, err)
+	}
+}
+
+// SPEC: MS-ASWBXML/decoder.tag
+func TestEncodeTag_PanicsOnLargeIdentity(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected panic")
+		}
+	}()
+	_ = EncodeTag(0x40, false, false)
+}
+
+// stallReader returns a non-EOF error on the second Read so that io.ReadFull
+// surfaces it during string-table reads.
+type stallReader struct {
+	r       io.Reader
+	stalled bool
+}
+
+func (s *stallReader) Read(b []byte) (int, error) {
+	if !s.stalled {
+		s.stalled = true
+		return s.r.Read(b)
+	}
+	return 0, errors.New("read stall")
 }
