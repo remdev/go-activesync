@@ -90,3 +90,13 @@ MS-ASTASK/importance.enum,MS-ASTASK,§2.2.2.6,Task Importance enum Low=0; Normal
 MS-ASPROV/policy-type,MS-ASPROV,§2.2.2.39,Provision Policy/PolicyType is MS-EAS-Provisioning-WBXML for EAS 14.1,required
 MS-ASPROV/two-phase-flow,MS-ASPROV,§3.2.5.1,Provision uses an initial download followed by an Acknowledge step that echoes PolicyKey and AcknowledgeStatus,required
 MS-ASPROV/policydoc.fields,MS-ASPROV,§2.2.2,"EASProvisionDoc carries 14.1 policy fields including DevicePasswordEnabled; AlphanumericDevicePasswordRequired; MinDevicePasswordLength; MaxInactivityTimeDeviceLock; MaxDevicePasswordFailedAttempts; AllowSimpleDevicePassword; RequireDeviceEncryption; AllowStorageCard; AllowCamera",required
+MS-ASCMD/foldersync.request,MS-ASCMD,§2.2.1.4,FolderSync request carries a single SyncKey element; initial SyncKey value is 0,required
+MS-ASCMD/foldersync.response,MS-ASCMD,§2.2.1.4,FolderSync response carries Status; SyncKey and a Changes container of Add/Update/Delete entries with ServerId/ParentId/DisplayName/Type,required
+MS-ASCMD/sync.request,MS-ASCMD,§2.2.1.21,Sync request carries Collections of Collection with SyncKey; CollectionId; optional GetChanges; WindowSize; Options; Commands,required
+MS-ASCMD/sync.response,MS-ASCMD,§2.2.1.21,Sync response carries Collections of Collection with SyncKey; CollectionId; Status; optional Commands of Add/Change/Delete/Fetch; optional MoreAvailable,required
+MS-ASCMD/sync.status,MS-ASCMD,§2.2.1.21.4,Sync Status enum 1=success; 3=invalid SyncKey; 4=protocol error; 5=server error; 6=conversion error; 7=conflict; 8=object not found,required
+MS-ASCMD/ping.request,MS-ASCMD,§2.2.1.13,Ping request carries HeartbeatInterval and Folders with Folder entries containing Id and Class,required
+MS-ASCMD/ping.response,MS-ASCMD,§2.2.1.13,Ping response carries Status and the list of Folders that have changes,required
+MS-ASCMD/ping.status.changes,MS-ASCMD,§2.2.1.13.6,Ping Status=2 indicates one or more folders have changes available,required
+MS-ASCMD/global.status.codes,MS-ASCMD,§2.2.4,Global Status codes include 142 invalid policy; 143 invalid policy key; 144 invalid device id,required
+MS-ASCMD/retry.142,MS-ASCMD,§2.2.4,Status 142 triggers automatic re-provision with a fresh PolicyKey before retrying the original command,required
