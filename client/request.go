@@ -271,9 +271,6 @@ func BuildURL(base string, encodedQuery string, plain bool) (string, error) {
 		u.RawQuery = encodedQuery
 	}
 	// Trim accidental fragment/extra parts.
-	out := u.String()
-	if strings.HasSuffix(out, "?") {
-		out = strings.TrimSuffix(out, "?")
-	}
+	out := strings.TrimSuffix(u.String(), "?")
 	return out, nil
 }

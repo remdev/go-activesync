@@ -5,9 +5,9 @@ PKG      ?= ./...
 COVER    ?= cover.out
 FUZZTIME ?= 30s
 
-.PHONY: all test race vet lint spec-lint cover fuzz tidy clean
+.PHONY: all test race vet lint spec-lint cover cover-gate fuzz tidy clean
 
-all: vet lint test
+all: vet lint test cover-gate
 
 test:
 	$(GO) test -count=1 $(PKG)
@@ -31,6 +31,9 @@ spec-lint:
 cover:
 	$(GO) test -race -count=1 -covermode=atomic -coverprofile=$(COVER) $(PKG)
 	$(GO) tool cover -func=$(COVER) | tail -n 1
+
+cover-gate: cover
+	$(GO) run ./internal/spec/cmd/covergate $(COVER)
 
 fuzz:
 	$(GO) test ./wbxml -run='^$$' -fuzz=FuzzDecode -fuzztime=$(FUZZTIME)

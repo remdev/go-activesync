@@ -17,12 +17,8 @@ import (
 )
 
 const (
-	// requestSchema identifies a mobilesync Autodiscover POX request.
-	requestSchema = "http://schemas.microsoft.com/exchange/autodiscover/mobilesync/requestschema/2006"
 	// responseSchema identifies the matching mobilesync POX response payload.
 	responseSchema = "http://schemas.microsoft.com/exchange/autodiscover/mobilesync/responseschema/2006"
-	// outerSchema is the outer Autodiscover envelope namespace.
-	outerSchema = "http://schemas.microsoft.com/exchange/autodiscover/responseschema/2006"
 
 	// path is the canonical Autodiscover POX path.
 	path = "/autodiscover/autodiscover.xml"

@@ -4,6 +4,7 @@
 
 # Coverage
 cover.out
+cover-*.out
 cover.html
 coverage.txt
 
