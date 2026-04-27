@@ -53,3 +53,17 @@ MS-ASWBXML/marshal.opaque,MS-ASWBXML,§2.1.2.1,Marshal honours the ;opaque optio
 MS-ASWBXML/marshal.slice,MS-ASWBXML,§2.1.2.1,Marshal emits one element per slice entry preserving order,required
 MS-ASWBXML/marshal.roundtrip,MS-ASWBXML,§2.1.2.1,Marshal followed by Unmarshal reproduces the input struct verbatim including nested page changes,required
 MS-ASWBXML/decoder.fuzz,MS-ASWBXML,§2.1.2.1,Decoder must not panic on any byte input regardless of malformed structure,required
+MS-ASHTTP/request.path,MS-ASHTTP,§2.2.1,Request line uses POST /Microsoft-Server-ActiveSync,required
+MS-ASHTTP/query.base64.layout,MS-ASHTTP,§2.2.1.1.1.1,"Base64 query bytes layout: ProtocolVersion (1B); CommandCode (1B); Locale little-endian (2B); DeviceID len-prefixed; PolicyKey len-prefixed; DeviceType len-prefixed; Params",required
+MS-ASHTTP/query.base64.example,MS-ASHTTP,§2.2.1.1.1.1,"golden round-trip of canonical example bytes 8C 00 09 04 0A v140Device 00 0A SmartPhone matches base64 jAAJBAp2MTQwRGV2aWNlAApTbWFydFBob25l",required
+MS-ASHTTP/query.base64.params,MS-ASHTTP,§2.2.1.1.1.1.3,Command-specific parameters use 1B tag + 1B length + value,required
+MS-ASHTTP/query.plain,MS-ASHTTP,§2.2.1.1.1.2,Plain query carries Cmd; User; DeviceId; DeviceType as URL key=value pairs,required
+MS-ASHTTP/query.command-codes,MS-ASHTTP,§2.2.1.1.1.1.2,"Command codes Sync=0; FolderSync=9; Ping=18; Provision=20",required
+MS-ASHTTP/headers.protocol-version,MS-ASHTTP,§2.2.2,MS-ASProtocolVersion header is mandatory and equals the protocol version e.g. 14.1,required
+MS-ASHTTP/headers.content-type,MS-ASHTTP,§2.2.2,Content-Type is application/vnd.ms-sync.wbxml for WBXML payloads,required
+MS-ASHTTP/headers.user-agent,MS-ASHTTP,§2.2.2,User-Agent header is mandatory and identifies the client,required
+MS-ASHTTP/headers.policy-key,MS-ASHTTP,§2.2.2,X-MS-PolicyKey header carries the active provisioning policy key (0 for initial Provision),required
+MS-ASHTTP/headers.accept-language,MS-ASHTTP,§2.2.2,Accept-Language header is honoured when set by the caller,required
+MS-ASHTTP/auth.basic,MS-ASHTTP,§2.2.2,Authorization Basic header carries username:password base64-encoded,required
+MS-ASHTTP/store.policy,MS-ASHTTP,§2.2.2,PolicyStore Get/Set persist the current policy key across calls,required
+MS-ASHTTP/store.syncstate,MS-ASHTTP,§2.2.2,SyncStateStore Get/Set persist the current SyncKey per collection,required
