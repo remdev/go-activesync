@@ -38,3 +38,17 @@ MS-ASWBXML/codepage.22.Email2,MS-ASWBXML,§2.1.2.1.23,Code page 22 carries Email
 MS-ASWBXML/codepage.23.Notes,MS-ASWBXML,§2.1.2.1.24,Code page 23 carries Notes element tags including Subject/MessageClass,required
 MS-ASWBXML/codepage.24.RightsManagement,MS-ASWBXML,§2.1.2.1.25,Code page 24 carries RightsManagement element tags including RightsManagementSupport/RightsManagementLicense,required
 MS-ASWBXML/codepage.invariants,MS-ASWBXML,§2.1.2.1,every tag in every code page has a unique 6-bit token within that page and unique name; lookups round-trip both ways,required
+MS-ASWBXML/encoder.tag,MS-ASWBXML,§2.1.2.1,Encoder writes a tag byte composed from current code page identity and content/attribute bits,required
+MS-ASWBXML/encoder.switch-page,MS-ASWBXML,§2.1.2.1,Encoder emits SWITCH_PAGE 0x00 followed by 1 byte page id when the active code page changes between tags,required
+MS-ASWBXML/encoder.string,MS-ASWBXML,§2.1.2.1,Encoder emits inline strings as STR_I 0x03 followed by UTF-8 bytes terminated by NUL,required
+MS-ASWBXML/encoder.opaque,MS-ASWBXML,§2.1.2.1,Encoder emits opaque payloads as OPAQUE 0xC3 followed by mb_u_int32 length and raw bytes,required
+MS-ASWBXML/encoder.end,MS-ASWBXML,§2.1.2.1,Encoder emits END 0x01 to close the most recent open element,required
+MS-ASWBXML/decoder.tag,MS-ASWBXML,§2.1.2.1,Decoder yields tag tokens already resolved to (code page id; identity; attribute bit; content bit),required
+MS-ASWBXML/decoder.switch-page,MS-ASWBXML,§2.1.2.1,Decoder transparently consumes SWITCH_PAGE bytes and reflects the new page on subsequent tag tokens,required
+MS-ASWBXML/decoder.string,MS-ASWBXML,§2.1.2.1,Decoder reads STR_I as UTF-8 NUL-terminated string and STR_T as offset into the document string-table,required
+MS-ASWBXML/decoder.opaque,MS-ASWBXML,§2.1.2.1,Decoder reads OPAQUE payloads as a length-prefixed byte slice,required
+MS-ASWBXML/marshal.tag-resolution,MS-ASWBXML,§2.1.2.1,Marshal resolves struct tag wbxml:\"Page.Tag\" via the registered code page tables,required
+MS-ASWBXML/marshal.omitempty,MS-ASWBXML,§2.1.2.1,Marshal honours the ;omitempty option and skips zero-valued fields,required
+MS-ASWBXML/marshal.opaque,MS-ASWBXML,§2.1.2.1,Marshal honours the ;opaque option and emits the field value as OPAQUE,required
+MS-ASWBXML/marshal.slice,MS-ASWBXML,§2.1.2.1,Marshal emits one element per slice entry preserving order,required
+MS-ASWBXML/marshal.roundtrip,MS-ASWBXML,§2.1.2.1,Marshal followed by Unmarshal reproduces the input struct verbatim including nested page changes,required
