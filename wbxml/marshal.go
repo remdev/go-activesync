@@ -194,7 +194,7 @@ func encodeStruct(enc *Encoder, v reflect.Value, info *structInfo, self *tagSpec
 }
 
 func encodeField(enc *Encoder, v reflect.Value, fs *fieldSpec) error {
-	// Slices of struct produce one element per entry.
+	// Slices of struct or scalar produce one element per entry.
 	if v.Kind() == reflect.Slice && v.Type().Elem().Kind() != reflect.Uint8 {
 		for i := 0; i < v.Len(); i++ {
 			elem := v.Index(i)
@@ -205,15 +205,23 @@ func encodeField(enc *Encoder, v reflect.Value, fs *fieldSpec) error {
 				}
 				sub = sub.Elem()
 			}
-			if sub.Kind() != reflect.Struct {
+			switch sub.Kind() {
+			case reflect.Struct:
+				subInfo, err := infoFor(sub.Type())
+				if err != nil {
+					return err
+				}
+				if err := encodeStruct(enc, sub, subInfo, &fs.tagSpec); err != nil {
+					return err
+				}
+			case reflect.String, reflect.Bool,
+				reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+				reflect.Uint, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+				if err := encodeScalarElement(enc, sub, &fs.tagSpec); err != nil {
+					return err
+				}
+			default:
 				return fmt.Errorf("wbxml: slice of unsupported kind %s for %s.%s", sub.Kind(), fs.pageName, fs.tagName)
-			}
-			subInfo, err := infoFor(sub.Type())
-			if err != nil {
-				return err
-			}
-			if err := encodeStruct(enc, sub, subInfo, &fs.tagSpec); err != nil {
-				return err
 			}
 		}
 		return nil
@@ -307,6 +315,33 @@ func encodeField(enc *Encoder, v reflect.Value, fs *fieldSpec) error {
 	}
 }
 
+func encodeScalarElement(enc *Encoder, v reflect.Value, ts *tagSpec) error {
+	if err := enc.StartTag(ts.page, ts.identity, false, true); err != nil {
+		return err
+	}
+	var s string
+	switch v.Kind() {
+	case reflect.String:
+		s = v.String()
+	case reflect.Bool:
+		if v.Bool() {
+			s = "1"
+		} else {
+			s = "0"
+		}
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		s = strconv.FormatInt(v.Int(), 10)
+	case reflect.Uint, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		s = strconv.FormatUint(v.Uint(), 10)
+	default:
+		return fmt.Errorf("wbxml: unsupported scalar kind %s for %s.%s", v.Kind(), ts.pageName, ts.tagName)
+	}
+	if err := enc.StrI(s); err != nil {
+		return err
+	}
+	return enc.EndTag()
+}
+
 func structHasContent(v reflect.Value, info *structInfo) bool {
 	for i := range info.fields {
 		fv := v.FieldByIndex(info.fields[i].index)
@@ -371,20 +406,47 @@ func decodeField(dec *Decoder, fv reflect.Value, fs *fieldSpec, openTok Token) e
 		if isPtr {
 			elemType = elemType.Elem()
 		}
-		newPtr := reflect.New(elemType)
-		subInfo, err := infoFor(elemType)
-		if err != nil {
-			return err
+		switch elemType.Kind() {
+		case reflect.Struct:
+			newPtr := reflect.New(elemType)
+			subInfo, err := infoFor(elemType)
+			if err != nil {
+				return err
+			}
+			if err := decodeStruct(dec, newPtr.Elem(), subInfo, openTok.HasContent); err != nil {
+				return err
+			}
+			if isPtr {
+				fv.Set(reflect.Append(fv, newPtr))
+			} else {
+				fv.Set(reflect.Append(fv, newPtr.Elem()))
+			}
+			return nil
+		case reflect.String, reflect.Bool,
+			reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+			reflect.Uint, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			newPtr := reflect.New(elemType)
+			if openTok.HasContent {
+				s, opaque, err := readElementValue(dec)
+				if err != nil {
+					return err
+				}
+				if opaque != nil {
+					s = string(opaque)
+				}
+				if err := assignScalar(newPtr.Elem(), s); err != nil {
+					return err
+				}
+			}
+			if isPtr {
+				fv.Set(reflect.Append(fv, newPtr))
+			} else {
+				fv.Set(reflect.Append(fv, newPtr.Elem()))
+			}
+			return nil
+		default:
+			return fmt.Errorf("wbxml: unsupported slice elem kind %s for %s.%s", elemType.Kind(), fs.pageName, fs.tagName)
 		}
-		if err := decodeStruct(dec, newPtr.Elem(), subInfo, openTok.HasContent); err != nil {
-			return err
-		}
-		if isPtr {
-			fv.Set(reflect.Append(fv, newPtr))
-		} else {
-			fv.Set(reflect.Append(fv, newPtr.Elem()))
-		}
-		return nil
 	}
 	if fv.Kind() == reflect.Pointer {
 		elemType := fv.Type().Elem()
