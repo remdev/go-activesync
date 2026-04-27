@@ -36,11 +36,19 @@ beyond the four above (SendMail, ItemOperations, Search, MoveItems, etc.).
 ```sh
 make test       # go test -race ./...
 make vet        # go vet ./...
-make lint       # staticcheck ./...
+make lint       # golangci-lint run ./...   (auto-installs golangci-lint if absent)
+make lint-fix   # golangci-lint run --fix
 make spec-lint  # verify the traceability matrix is fully covered
 make cover      # go test -race -coverprofile
+make cover-gate # enforce per-package coverage thresholds
 make fuzz       # short fuzz smoke run
 ```
+
+The configured linter set (see `.golangci.yml`) bundles `staticcheck`,
+`govet`, `errcheck`, `revive`, `gosec`, `gocritic`, `bodyclose`, `errorlint`,
+`unparam`, `unconvert`, `usestdlibvars`, `usetesting`, formatters `gofmt`
+and `goimports`, and a handful of others. Test files relax the noisier
+rules; see the `exclusions` block for the exact list.
 
 ## License
 

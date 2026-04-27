@@ -54,12 +54,12 @@ func TestQueryBase64_LayoutBytes(t *testing.T) {
 		t.Fatalf("base64 decode: %v", err)
 	}
 	want := []byte{
-		0x91,                   // ProtocolVersion 14.1
-		CmdProvision,           // CommandCode 20
-		0x09, 0x04,             // Locale 0x0409 little-endian
-		0x03, 'a', 'b', 'c',    // DeviceID
-		0x00,                   // PolicyKey length 0
-		0x02, 'W', 'P',         // DeviceType
+		0x91,         // ProtocolVersion 14.1
+		CmdProvision, // CommandCode 20
+		0x09, 0x04,   // Locale 0x0409 little-endian
+		0x03, 'a', 'b', 'c', // DeviceID
+		0x00,           // PolicyKey length 0
+		0x02, 'W', 'P', // DeviceType
 	}
 	if !bytes.Equal(raw, want) {
 		t.Fatalf("bytes = % X, want % X", raw, want)

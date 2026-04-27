@@ -14,7 +14,7 @@ func (c *Client) Sync(ctx context.Context, user string, req *eas.SyncRequest) (*
 	if err := c.do(ctx, CmdSync, user, req, &resp); err != nil {
 		return nil, err
 	}
-	if resp.Status != 0 && resp.Status != int32(eas.SyncStatusSuccess) {
+	if resp.Status != 0 && resp.Status != eas.SyncStatusSuccess {
 		return &resp, &StatusError{Command: "Sync", Status: resp.Status}
 	}
 	return &resp, nil

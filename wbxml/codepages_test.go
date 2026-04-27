@@ -9,9 +9,9 @@ import (
 // code page: its numeric identifier, canonical name, and a small set of
 // signature tags whose presence and token values are pinned down by the spec.
 type expectedPage struct {
-	id    byte
-	name  string
-	tags  []expectedTag
+	id   byte
+	name string
+	tags []expectedTag
 }
 
 type expectedTag struct {

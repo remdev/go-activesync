@@ -48,7 +48,7 @@ func (s *InMemoryPolicyStore) Set(_ context.Context, key string) error {
 
 // InMemorySyncStateStore is a process-local SyncStateStore.
 type InMemorySyncStateStore struct {
-	mu  sync.RWMutex
+	mu   sync.RWMutex
 	keys map[string]string
 }
 

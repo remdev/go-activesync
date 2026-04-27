@@ -114,7 +114,7 @@ func ReadMbUint32(r io.ByteReader) (uint32, int, error) {
 	for n := 1; n <= 5; n++ {
 		b, err := r.ReadByte()
 		if err != nil {
-			if err == io.EOF && n > 1 {
+			if errors.Is(err, io.EOF) && n > 1 {
 				return 0, n - 1, io.ErrUnexpectedEOF
 			}
 			return 0, n - 1, err

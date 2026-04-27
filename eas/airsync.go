@@ -34,20 +34,20 @@ type SyncCollection struct {
 
 // SyncOptions is the per-collection Options element for a Sync request.
 type SyncOptions struct {
-	FilterType     int32             `wbxml:"AirSync.FilterType,omitempty"`
-	Class          string            `wbxml:"AirSync.Class,omitempty"`
-	MIMESupport    int32             `wbxml:"AirSync.MIMESupport,omitempty"`
-	MIMETruncation int32             `wbxml:"AirSync.MIMETruncation,omitempty"`
-	MaxItems       int32             `wbxml:"AirSync.MaxItems,omitempty"`
-	BodyPreference []BodyPreference  `wbxml:"AirSyncBase.BodyPreference,omitempty"`
+	FilterType     int32            `wbxml:"AirSync.FilterType,omitempty"`
+	Class          string           `wbxml:"AirSync.Class,omitempty"`
+	MIMESupport    int32            `wbxml:"AirSync.MIMESupport,omitempty"`
+	MIMETruncation int32            `wbxml:"AirSync.MIMETruncation,omitempty"`
+	MaxItems       int32            `wbxml:"AirSync.MaxItems,omitempty"`
+	BodyPreference []BodyPreference `wbxml:"AirSyncBase.BodyPreference,omitempty"`
 }
 
 // BodyPreference is the AirSyncBase preference declaration.
 type BodyPreference struct {
-	Type            int32 `wbxml:"AirSyncBase.Type"`
-	TruncationSize  int32 `wbxml:"AirSyncBase.TruncationSize,omitempty"`
-	AllOrNone       int32 `wbxml:"AirSyncBase.AllOrNone,omitempty"`
-	Preview         int32 `wbxml:"AirSyncBase.Preview,omitempty"`
+	Type           int32 `wbxml:"AirSyncBase.Type"`
+	TruncationSize int32 `wbxml:"AirSyncBase.TruncationSize,omitempty"`
+	AllOrNone      int32 `wbxml:"AirSyncBase.AllOrNone,omitempty"`
+	Preview        int32 `wbxml:"AirSyncBase.Preview,omitempty"`
 }
 
 // SyncCommands wraps Add/Change/Delete/Fetch commands inside a Sync

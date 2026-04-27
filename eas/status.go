@@ -12,13 +12,13 @@ const (
 
 // Sync command Status values per MS-ASCMD §2.2.1.21.4.
 const (
-	SyncStatusSuccess          int32 = 1
-	SyncStatusInvalidSyncKey   int32 = 3
-	SyncStatusProtocolError    int32 = 4
-	SyncStatusServerError      int32 = 5
-	SyncStatusConversionError  int32 = 6
-	SyncStatusConflict         int32 = 7
-	SyncStatusObjectNotFound   int32 = 8
+	SyncStatusSuccess         int32 = 1
+	SyncStatusInvalidSyncKey  int32 = 3
+	SyncStatusProtocolError   int32 = 4
+	SyncStatusServerError     int32 = 5
+	SyncStatusConversionError int32 = 6
+	SyncStatusConflict        int32 = 7
+	SyncStatusObjectNotFound  int32 = 8
 )
 
 // IsKnownSyncStatus reports whether code is a defined Sync status value.

@@ -8,9 +8,9 @@ type Tag struct {
 
 // CodePage is one of the 25 EAS code pages defined by MS-ASWBXML.
 type CodePage struct {
-	ID    byte
-	Name  string
-	Tags  []Tag
+	ID   byte
+	Name string
+	Tags []Tag
 
 	byToken map[byte]string
 	byName  map[string]byte

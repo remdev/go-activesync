@@ -70,5 +70,5 @@ func TestPolicyKey_NilStore(t *testing.T) {
 
 type errStore struct{}
 
-func (errStore) Get(context.Context) (string, error)        { return "", errors.New("boom") }
-func (errStore) Set(context.Context, string) error          { return nil }
+func (errStore) Get(context.Context) (string, error) { return "", errors.New("boom") }
+func (errStore) Set(context.Context, string) error   { return nil }

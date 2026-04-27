@@ -1,11 +1,13 @@
 SHELL := /bin/sh
 
-GO       ?= go
-PKG      ?= ./...
-COVER    ?= cover.out
-FUZZTIME ?= 30s
+GO              ?= go
+GOLANGCI_LINT   ?= golangci-lint
+GOLANGCI_VERSION?= v2.11.4
+PKG             ?= ./...
+COVER           ?= cover.out
+FUZZTIME        ?= 30s
 
-.PHONY: all test race vet lint spec-lint cover cover-gate fuzz tidy clean
+.PHONY: all test race vet lint lint-fix spec-lint cover cover-gate fuzz tidy clean tools
 
 all: vet lint test cover-gate
 
@@ -18,12 +20,17 @@ race:
 vet:
 	$(GO) vet $(PKG)
 
-lint:
-	@command -v staticcheck >/dev/null 2>&1 || { \
-	  echo "installing staticcheck"; \
-	  $(GO) install honnef.co/go/tools/cmd/staticcheck@latest; \
+tools:
+	@command -v $(GOLANGCI_LINT) >/dev/null 2>&1 || { \
+	  echo "installing golangci-lint $(GOLANGCI_VERSION)"; \
+	  $(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_VERSION); \
 	}
-	staticcheck $(PKG)
+
+lint: tools
+	$(GOLANGCI_LINT) run $(PKG)
+
+lint-fix: tools
+	$(GOLANGCI_LINT) run --fix $(PKG)
 
 spec-lint:
 	$(GO) run ./internal/spec/cmd/speclint

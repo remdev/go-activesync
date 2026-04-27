@@ -164,7 +164,9 @@ func (c *Client) doOnce(ctx context.Context, cmd byte, user string, request, res
 		AcceptLanguage:  c.AcceptLanguage,
 	})
 	if c.Auth != nil {
-		c.Auth.Apply(req)
+		if err := c.Auth.Apply(req); err != nil {
+			return fmt.Errorf("client: auth: %w", err)
+		}
 	}
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {

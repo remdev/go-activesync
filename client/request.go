@@ -39,16 +39,16 @@ const (
 
 // Command-specific parameter tags (MS-ASHTTP §2.2.1.1.1.1.3).
 const (
-	ParamAttachmentName byte = 0
-	ParamCollectionID   byte = 1
-	ParamCollectionName byte = 2
-	ParamItemID         byte = 3
-	ParamLongID         byte = 4
-	ParamParentID       byte = 5
-	ParamOccurrence     byte = 6
-	ParamOptions        byte = 7
-	ParamUser           byte = 8
-	ParamSaveInSent     byte = 9
+	ParamAttachmentName  byte = 0
+	ParamCollectionID    byte = 1
+	ParamCollectionName  byte = 2
+	ParamItemID          byte = 3
+	ParamLongID          byte = 4
+	ParamParentID        byte = 5
+	ParamOccurrence      byte = 6
+	ParamOptions         byte = 7
+	ParamUser            byte = 8
+	ParamSaveInSent      byte = 9
 	ParamAcceptMultipart byte = 10
 )
 
@@ -264,13 +264,11 @@ func BuildURL(base string, encodedQuery string, plain bool) (string, error) {
 	if u.Path == "" || u.Path == "/" {
 		u.Path = EndpointPath
 	}
-	if plain {
-		u.RawQuery = encodedQuery
-	} else {
-		// Base64 form: the entire query string is the encoded value.
-		u.RawQuery = encodedQuery
-	}
-	// Trim accidental fragment/extra parts.
+	// Both transports place the encoded query (plain key=value pairs or the
+	// base64 binary blob) into RawQuery verbatim. The plain flag is part of
+	// the public signature for forward compatibility.
+	_ = plain
+	u.RawQuery = encodedQuery
 	out := strings.TrimSuffix(u.String(), "?")
 	return out, nil
 }

@@ -200,7 +200,7 @@ func TestDecoder_StringTable(t *testing.T) {
 	// Header with string-table populated, body referring offset 0 via STR_T.
 	doc := []byte{
 		0x03, 0x01, 0x6A, // version=1.3, publicid=1, charset=UTF-8 (mb_u_int32 0x6A)
-		0x05,          // string-table length = 5
+		0x05, // string-table length = 5
 		'h', 'i', 0,
 		'!', 0,
 		// Tag: AirSync.Sync (page 0, tag 0x05) with content

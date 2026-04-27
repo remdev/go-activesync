@@ -46,9 +46,9 @@ type Token struct {
 // Decoder is a streaming WBXML 1.3 decoder. It transparently consumes
 // SWITCH_PAGE tokens and reflects the active page on subsequent tag tokens.
 type Decoder struct {
-	r        *bufio.Reader
-	page     byte
-	pageInit bool
+	r           *bufio.Reader
+	page        byte
+	pageInit    bool
 	stringTable []byte
 }
 
@@ -141,7 +141,7 @@ func readNulString(r io.ByteReader) (string, error) {
 	for {
 		b, err := r.ReadByte()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				return "", io.ErrUnexpectedEOF
 			}
 			return "", err

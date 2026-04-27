@@ -9,20 +9,20 @@ const (
 
 // Task is the sync representation of a task (MS-ASTASK 14.1).
 type Task struct {
-	XMLName      struct{}        `wbxml:"AirSync.ApplicationData"`
-	Subject      string          `wbxml:"Tasks.Subject,omitempty"`
-	StartDate    string          `wbxml:"Tasks.StartDate,omitempty"`
-	UtcStartDate string          `wbxml:"Tasks.UtcStartDate,omitempty"`
-	DueDate      string          `wbxml:"Tasks.DueDate,omitempty"`
-	UtcDueDate   string          `wbxml:"Tasks.UtcDueDate,omitempty"`
-	Importance   int32           `wbxml:"Tasks.Importance,omitempty"`
-	Sensitivity  int32           `wbxml:"Tasks.Sensitivity,omitempty"`
-	Complete     int32           `wbxml:"Tasks.Complete,omitempty"`
-	DateCompleted string         `wbxml:"Tasks.DateCompleted,omitempty"`
-	ReminderSet  int32           `wbxml:"Tasks.ReminderSet,omitempty"`
-	ReminderTime string          `wbxml:"Tasks.ReminderTime,omitempty"`
-	Categories   *TaskCategories `wbxml:"Tasks.Categories,omitempty"`
-	Recurrence   *TaskRecurrence `wbxml:"Tasks.Recurrence,omitempty"`
+	XMLName       struct{}        `wbxml:"AirSync.ApplicationData"`
+	Subject       string          `wbxml:"Tasks.Subject,omitempty"`
+	StartDate     string          `wbxml:"Tasks.StartDate,omitempty"`
+	UtcStartDate  string          `wbxml:"Tasks.UtcStartDate,omitempty"`
+	DueDate       string          `wbxml:"Tasks.DueDate,omitempty"`
+	UtcDueDate    string          `wbxml:"Tasks.UtcDueDate,omitempty"`
+	Importance    int32           `wbxml:"Tasks.Importance,omitempty"`
+	Sensitivity   int32           `wbxml:"Tasks.Sensitivity,omitempty"`
+	Complete      int32           `wbxml:"Tasks.Complete,omitempty"`
+	DateCompleted string          `wbxml:"Tasks.DateCompleted,omitempty"`
+	ReminderSet   int32           `wbxml:"Tasks.ReminderSet,omitempty"`
+	ReminderTime  string          `wbxml:"Tasks.ReminderTime,omitempty"`
+	Categories    *TaskCategories `wbxml:"Tasks.Categories,omitempty"`
+	Recurrence    *TaskRecurrence `wbxml:"Tasks.Recurrence,omitempty"`
 }
 
 // TaskCategories wraps a Tasks.Categories element.

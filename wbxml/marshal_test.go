@@ -30,8 +30,8 @@ type pingRoot struct {
 }
 
 type folders struct {
-	XMLName struct{}      `wbxml:"Ping.Folders"`
-	Folder  []pingFolder  `wbxml:"Ping.Folder"`
+	XMLName struct{}     `wbxml:"Ping.Folders"`
+	Folder  []pingFolder `wbxml:"Ping.Folder"`
 }
 
 type pingFolder struct {

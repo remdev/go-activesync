@@ -64,7 +64,7 @@ func main() {
 		}
 		pct := 100 * float64(c.covered) / float64(c.total)
 		thr, hasThr := thresholds[pkg]
-		mark := "  "
+		var mark string
 		switch {
 		case !hasThr:
 			mark = "--"

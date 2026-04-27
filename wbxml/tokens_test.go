@@ -50,11 +50,11 @@ func TestGlobalTokens_Constants(t *testing.T) {
 // SPEC: OMA-WBXML-1.3/tag.bits
 func TestTagBits(t *testing.T) {
 	cases := []struct {
-		name           string
-		b              byte
-		hasAttrs       bool
-		hasContent     bool
-		identity       byte
+		name       string
+		b          byte
+		hasAttrs   bool
+		hasContent bool
+		identity   byte
 	}{
 		{"plain", 0x05, false, false, 0x05},
 		{"content", 0x45, false, true, 0x05},

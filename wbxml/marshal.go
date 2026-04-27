@@ -80,10 +80,10 @@ func Unmarshal(data []byte, v any) error {
 // ------- internal: type info cache -------
 
 type tagSpec struct {
-	page     byte
-	identity byte
-	pageName string
-	tagName  string
+	page      byte
+	identity  byte
+	pageName  string
+	tagName   string
 	omitempty bool
 	opaque    bool
 }
@@ -95,8 +95,8 @@ type fieldSpec struct {
 }
 
 type structInfo struct {
-	self   *tagSpec     // element identity (from XMLName), or nil
-	fields []fieldSpec  // non-XMLName fields
+	self   *tagSpec       // element identity (from XMLName), or nil
+	fields []fieldSpec    // non-XMLName fields
 	byTag  map[uint32]int // page<<8|identity → index into fields
 }
 
