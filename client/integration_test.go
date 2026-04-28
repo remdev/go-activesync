@@ -134,6 +134,46 @@ func TestProvision_TwoPhase(t *testing.T) {
 	}
 }
 
+// SPEC: MS-ASHTTP/client.profile.extra-headers
+func TestFolderSync_OutgoingExtraHeaders(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req eas.FolderSyncRequest
+		decodeWBXML(t, r, &req)
+		if got := r.Header.Get("X-Device-Model"); got != "Surface" {
+			t.Errorf("X-Device-Model = %q", got)
+		}
+		if got := r.Header.Get("User-Agent"); got != "go-activesync-test/1.0" {
+			t.Errorf("User-Agent should stay mandatory client UA, got %q", got)
+		}
+		writeWBXML(t, w, &eas.FolderSyncResponse{
+			Status:  int32(eas.StatusSuccess),
+			SyncKey: "FS-X",
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	extra := http.Header{
+		"x-device-model": []string{"Surface"},
+		"User-Agent":     []string{"should-not-override"},
+	}
+	c, err := New(Config{
+		BaseURL:      srv.URL + EndpointPath,
+		HTTPClient:   srv.Client(),
+		Auth:         &BasicAuth{Username: "user@example.com", Password: "secret"},
+		DeviceID:     "TESTDEVICE",
+		DeviceType:   "SmartPhone",
+		UserAgent:    "go-activesync-test/1.0",
+		Locale:       0x0409,
+		ExtraHeaders: extra,
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if _, err := c.FolderSync(context.Background(), "user@example.com", "0"); err != nil {
+		t.Fatalf("FolderSync: %v", err)
+	}
+}
+
 // SPEC: MS-ASCMD/scenario.full
 // SPEC: MS-ASCMD/foldersync.response
 func TestFolderSync_Initial(t *testing.T) {

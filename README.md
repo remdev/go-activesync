@@ -102,6 +102,28 @@ if eas.PingHasChanges(resp.Status) {
 }
 ```
 
+### Outlook-like client profile
+
+Many servers key off `DeviceType` and `Locale` (LCID), and expect additional metadata via headers rather than MS-ASHTTP query fields. Use `DeviceType: "Outlook"` when emulating Outlook; set `Locale` to `0x0409` for en-US or `0x0419` for ru-RU. Device model, OS version, or other vendor-specific strings are not separate `Config` fields—supply them with `ExtraHeaders` so they merge after the mandatory headers without replacing `User-Agent`, `MS-ASProtocolVersion`, and other values the client sets. If you must avoid HTTP/2 to match an older appliance or proxy, pass `ForceHTTP11: true` with `HTTPClient: nil`; if you inject your own `HTTPClient`, tune its transport yourself (`ForceHTTP11` is ignored).
+
+```go
+import "net/http"
+
+_, err := client.New(client.Config{
+    BaseURL:    ad.URL,
+    Auth:       &client.BasicAuth{Username: "user@example.com", Password: "pass"},
+    DeviceID:   "stable-device-id",
+    DeviceType: "Outlook",
+    Locale:     0x0409,
+    UserAgent:  "Microsoft Office/16.0 (Windows NT 10.0; Microsoft Outlook 16.0.1)",
+    ExtraHeaders: http.Header{
+        "X-MS-Device-MachineName": []string{"WORKSTATION1"},
+        "X-OS-Type":               []string{"Windows"},
+    },
+    ForceHTTP11: true,
+})
+```
+
 Runnable end-to-end programs live under [`examples/`](examples/):
 [`login`](examples/login), [`inbox-sync`](examples/inbox-sync),
 [`calendar-sync`](examples/calendar-sync), [`ping`](examples/ping).
