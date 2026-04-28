@@ -49,7 +49,10 @@ if _, err := c.Provision(ctx, "user@example.com"); err != nil { /* handle */ }
 ### Sync new e-mails from the inbox
 
 ```go
-import "github.com/remdev/go-activesync/eas"
+import (
+    "github.com/remdev/go-activesync/client"
+    "github.com/remdev/go-activesync/eas"
+)
 
 initial, _ := c.Sync(ctx, user, &eas.SyncRequest{
     Collections: eas.SyncCollections{
@@ -58,7 +61,7 @@ initial, _ := c.Sync(ctx, user, &eas.SyncRequest{
 })
 syncKey := initial.Collections.Collection[0].SyncKey
 
-resp, _ := c.Sync(ctx, user, &eas.SyncRequest{
+resp, _ := client.SyncTyped[eas.Email](ctx, c, user, &eas.SyncRequest{
     Collections: eas.SyncCollections{
         Collection: []eas.SyncCollection{{
             SyncKey:      syncKey,
@@ -69,15 +72,19 @@ resp, _ := c.Sync(ctx, user, &eas.SyncRequest{
     },
 })
 
-for _, col := range resp.Collections.Collection {
-    for _, add := range col.Commands.Add {
-        // add.ServerID identifies the message; add.ApplicationData is an
-        // opaque carrier in v0.x — see the "Typed Sync payloads" entry in
-        // the Roadmap below for the planned typed-decoding API.
-        _ = add.ServerID
+for _, col := range resp.Collections {
+    for _, add := range col.Add {
+        if add.ApplicationData == nil {
+            continue
+        }
+        log.Printf("new mail %s: %s", add.ServerID, add.ApplicationData.Subject)
     }
 }
 ```
+
+For mixed-class collections, call `c.Sync` directly and use the
+`SyncAdd.Email()` / `Appointment()` / `Contact()` / `Task()` helpers, or
+project a single collection with `eas.NewTypedSyncResponse[T]`.
 
 ### Long-poll for changes with Ping
 
@@ -122,6 +129,7 @@ Implemented and covered by the test suite:
 | Auth            | HTTP Basic; pluggable `Authenticator` interface                           |
 | Provisioning    | Two-pass MS-ASPROV with auto re-provision on Status 142/143               |
 | Commands        | `Provision`, `FolderSync`, `Sync`, `Ping`                                 |
+| Typed Sync      | `client.SyncTyped[T]`, `eas.UnmarshalApplicationData[T]`, four helpers    |
 | PIM data models | `MS-ASEMAIL`, `MS-ASCAL`, `MS-ASCNTC`, `MS-ASTASK`                        |
 | Stores          | In-memory `PolicyStore` and `SyncStateStore`; pluggable interfaces        |
 | Hardening       | Bounded decoder allocations + `FuzzDecode` over the WBXML reader          |
@@ -132,13 +140,6 @@ Implemented and covered by the test suite:
 
 Out of scope for v0.x; tracked for future releases.
 
-- **Typed `Sync` payloads**: today `SyncCollection.Commands.Add[].ApplicationData`
-  is `*eas.AppRaw struct{}`, i.e. an opaque carrier — concrete `Email`,
-  `Appointment`, `Contact` and `Task` bodies are not surfaced by `c.Sync`.
-  Plan: add a `wbxml.RawElement` primitive so the decoder can preserve the
-  raw subtree, expose `SyncAdd.Email()/Appointment()/Contact()/Task()`
-  helpers for mixed-class responses, and provide a generic
-  `eas.SyncTyped[T]` wrapper for the common single-class case.
 - **Commands**: `SendMail`, `SmartReply`, `SmartForward`, `MeetingResponse`,
   `MoveItems`, `ItemOperations` (Fetch/EmptyFolderContents),
   `GetItemEstimate`, `Search`, `ResolveRecipients`, `ValidateCert`,

@@ -374,6 +374,73 @@ func mustEmailBody(t *testing.T, e *eas.Email) []byte {
 	return body
 }
 
+// SPEC: MS-ASCMD/sync.typed
+func TestSyncTyped_Email(t *testing.T) {
+	in := []eas.Email{
+		{Subject: "first", From: "a@example.com", To: "b@example.com"},
+		{Subject: "second", From: "c@example.com", To: "d@example.com"},
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req eas.SyncRequest
+		decodeWBXML(t, r, &req)
+		adds := make([]eas.SyncAdd, 0, len(in))
+		for i, e := range in {
+			adds = append(adds, eas.SyncAdd{
+				ServerID: serverIDFor(i),
+				ApplicationData: &wbxml.RawElement{
+					Page:  wbxml.PageAirSync,
+					Bytes: mustEmailBody(t, &e),
+				},
+			})
+		}
+		writeWBXML(t, w, &eas.SyncResponse{
+			Status: int32(eas.SyncStatusSuccess),
+			Collections: eas.SyncCollections{
+				Collection: []eas.SyncCollection{{
+					SyncKey:      "S-2",
+					CollectionID: "1",
+					Class:        "Email",
+					Status:       int32(eas.SyncStatusSuccess),
+					Commands:     &eas.SyncCommands{Add: adds},
+				}},
+			},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	c := newTestClient(t, srv)
+	resp, err := SyncTyped[eas.Email](context.Background(), c, "user@example.com", &eas.SyncRequest{
+		Collections: eas.SyncCollections{
+			Collection: []eas.SyncCollection{{SyncKey: "0", CollectionID: "1", GetChanges: 1}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("SyncTyped: %v", err)
+	}
+	if len(resp.Collections) != 1 {
+		t.Fatalf("collections: %d", len(resp.Collections))
+	}
+	col := resp.Collections[0]
+	if col.Class != "Email" || col.SyncKey != "S-2" {
+		t.Fatalf("collection metadata: %+v", col)
+	}
+	if len(col.Add) != len(in) {
+		t.Fatalf("Add count = %d, want %d", len(col.Add), len(in))
+	}
+	for i, item := range col.Add {
+		if item.ApplicationData == nil {
+			t.Fatalf("Add[%d] ApplicationData nil", i)
+		}
+		if item.ApplicationData.Subject != in[i].Subject {
+			t.Fatalf("Add[%d] Subject %q, want %q", i, item.ApplicationData.Subject, in[i].Subject)
+		}
+	}
+}
+
+func serverIDFor(i int) string {
+	return "1:" + string(rune('0'+i))
+}
+
 // SPEC: MS-ASCMD/ping.response
 // SPEC: MS-ASCMD/ping.status.changes
 func TestPing_ChangesAvailable(t *testing.T) {
