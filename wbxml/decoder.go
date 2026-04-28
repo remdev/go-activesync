@@ -2,6 +2,7 @@ package wbxml
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -17,6 +18,13 @@ var MaxOpaqueSize uint32 = 64 << 20 // 64 MiB
 // MaxInlineStringSize bounds the in-memory size of a single inline (STR_I)
 // string. The same rationale as MaxOpaqueSize applies.
 var MaxInlineStringSize = 16 << 20 // 16 MiB
+
+// MaxRawElementSize bounds the cumulative size of bytes captured by a single
+// Decoder.CaptureRaw call. Per-token caps (MaxOpaqueSize, MaxInlineStringSize)
+// already neutralise individual giant payloads; this cap additionally limits
+// the total buffer growth from a flood of small tokens or tags within one
+// element body. Exposed as a var so callers (and tests) may tune it.
+var MaxRawElementSize = 64 << 20 // 64 MiB
 
 // TokenKind classifies a logical WBXML token after SWITCH_PAGE handling.
 type TokenKind int
@@ -148,6 +156,139 @@ func (d *Decoder) NextToken() (Token, error) {
 			}, nil
 		}
 	}
+}
+
+// Page returns the currently active code page.
+func (d *Decoder) Page() byte { return d.page }
+
+// CaptureRaw reads bytes from the underlying stream until it consumes the
+// END token that closes the element whose open tag was just returned. The
+// returned slice contains everything between (but excluding) that open tag
+// and the matching END token, including any inner SWITCH_PAGE markers, so it
+// can be replayed verbatim by Encoder.WriteRaw. If hasContent is false the
+// call is a no-op and returns a nil slice.
+//
+// CaptureRaw also tracks the active code page across inner SWITCH_PAGE
+// transitions, so Decoder.Page reflects the page that is active immediately
+// after the closing END.
+//
+// SPEC: MS-ASWBXML/marshal.raw
+func (d *Decoder) CaptureRaw(hasContent bool) ([]byte, error) {
+	if !hasContent {
+		return nil, nil
+	}
+	var buf []byte
+	checkBudget := func() error {
+		if len(buf) > MaxRawElementSize {
+			return fmt.Errorf("wbxml: raw element exceeds %d-byte limit", MaxRawElementSize)
+		}
+		return nil
+	}
+	depth := 1
+	for depth > 0 {
+		b, err := d.r.ReadByte()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return nil, io.ErrUnexpectedEOF
+			}
+			return nil, err
+		}
+		switch b {
+		case SwitchPage:
+			page, err := d.r.ReadByte()
+			if err != nil {
+				return nil, fmt.Errorf("wbxml: SWITCH_PAGE: %w", err)
+			}
+			if _, ok := PageByID(page); !ok {
+				return nil, fmt.Errorf("wbxml: SWITCH_PAGE to unknown code page %d", page)
+			}
+			d.page = page
+			d.pageInit = true
+			buf = append(buf, SwitchPage, page)
+		case End:
+			depth--
+			if depth == 0 {
+				return buf, nil
+			}
+			buf = append(buf, End)
+		case StrI:
+			buf = append(buf, StrI)
+			strLen := 0
+			for {
+				c, err := d.r.ReadByte()
+				if err != nil {
+					if errors.Is(err, io.EOF) {
+						return nil, io.ErrUnexpectedEOF
+					}
+					return nil, err
+				}
+				if c == 0x00 {
+					buf = append(buf, c)
+					break
+				}
+				if strLen >= MaxInlineStringSize {
+					return nil, fmt.Errorf("wbxml: STR_I exceeds %d-byte limit", MaxInlineStringSize)
+				}
+				buf = append(buf, c)
+				strLen++
+			}
+		case StrT:
+			buf = append(buf, StrT)
+			if buf, err = appendMbUint32Bytes(d.r, buf); err != nil {
+				return nil, err
+			}
+		case Opaque:
+			buf = append(buf, Opaque)
+			before := len(buf)
+			if buf, err = appendMbUint32Bytes(d.r, buf); err != nil {
+				return nil, err
+			}
+			n, _, perr := ReadMbUint32(bytes.NewReader(buf[before:]))
+			if perr != nil {
+				return nil, perr
+			}
+			if n > MaxOpaqueSize {
+				return nil, fmt.Errorf("wbxml: OPAQUE length %d exceeds %d-byte limit", n, MaxOpaqueSize)
+			}
+			payload := make([]byte, n)
+			if _, err := io.ReadFull(d.r, payload); err != nil {
+				return nil, err
+			}
+			buf = append(buf, payload...)
+		default:
+			if !d.pageInit {
+				return nil, errors.New("wbxml: tag byte before any SWITCH_PAGE")
+			}
+			buf = append(buf, b)
+			if TagHasContent(b) {
+				depth++
+			}
+		}
+		if err := checkBudget(); err != nil {
+			return nil, err
+		}
+	}
+	return buf, nil
+}
+
+// appendMbUint32Bytes copies an mb_u_int32 from r into dst, returning the
+// extended slice. It is the byte-preserving counterpart to ReadMbUint32 and is
+// used by CaptureRaw to keep STR_T offsets and OPAQUE lengths verbatim.
+func appendMbUint32Bytes(r io.ByteReader, dst []byte) ([]byte, error) {
+	for n := 1; n <= 5; n++ {
+		c, err := r.ReadByte()
+		if err != nil {
+			if errors.Is(err, io.EOF) && n > 1 {
+				return dst, io.ErrUnexpectedEOF
+			}
+			return dst, err
+		}
+		dst = append(dst, c)
+		if c&0x80 == 0 {
+			return dst, nil
+		}
+	}
+	return dst, errors.New("wbxml: mb_u_int32 longer than 5 bytes")
 }
 
 func readNulString(r io.ByteReader) (string, error) {

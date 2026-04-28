@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"net/http"
@@ -268,6 +269,176 @@ func TestSync_RoundTrip(t *testing.T) {
 	if resp.Collections.Collection[0].SyncKey != "S-1" {
 		t.Errorf("SyncKey = %q", resp.Collections.Collection[0].SyncKey)
 	}
+}
+
+// SPEC: MS-ASCMD/sync.applicationdata.raw
+// SPEC: MS-ASCMD/sync.applicationdata.typed
+func TestSync_TypedApplicationData(t *testing.T) {
+	emailIn := &eas.Email{
+		Subject: "hello",
+		From:    "alice@example.com",
+		To:      "bob@example.com",
+	}
+	body := mustEmailBody(t, emailIn)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req eas.SyncRequest
+		decodeWBXML(t, r, &req)
+		writeWBXML(t, w, &eas.SyncResponse{
+			Collections: eas.SyncCollections{
+				Collection: []eas.SyncCollection{{
+					SyncKey:      "S-1",
+					CollectionID: "1",
+					Class:        "Email",
+					Status:       int32(eas.SyncStatusSuccess),
+					Commands: &eas.SyncCommands{
+						Add: []eas.SyncAdd{{
+							ServerID: "1:1",
+							ApplicationData: &wbxml.RawElement{
+								Page:  wbxml.PageAirSync,
+								Bytes: body,
+							},
+						}},
+						Change: []eas.SyncChange{{
+							ServerID: "1:1",
+							ApplicationData: &wbxml.RawElement{
+								Page:  wbxml.PageAirSync,
+								Bytes: body,
+							},
+						}},
+					},
+				}},
+			},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	c := newTestClient(t, srv)
+	resp, err := c.Sync(context.Background(), "user@example.com", &eas.SyncRequest{
+		Collections: eas.SyncCollections{
+			Collection: []eas.SyncCollection{{SyncKey: "0", CollectionID: "1", GetChanges: 1}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Sync: %v", err)
+	}
+	col := resp.Collections.Collection[0]
+	if col.Commands == nil || len(col.Commands.Add) != 1 {
+		t.Fatalf("missing Add: %+v", col.Commands)
+	}
+	add := col.Commands.Add[0]
+	if add.ApplicationData == nil {
+		t.Fatal("ApplicationData missing on Add")
+	}
+	got, err := add.Email()
+	if err != nil {
+		t.Fatalf("add.Email: %v", err)
+	}
+	if got.Subject != emailIn.Subject || got.From != emailIn.From || got.To != emailIn.To {
+		t.Fatalf("Email decode mismatch: %+v", got)
+	}
+	chg := col.Commands.Change[0]
+	got2, err := chg.Email()
+	if err != nil {
+		t.Fatalf("change.Email: %v", err)
+	}
+	if got2.Subject != emailIn.Subject {
+		t.Fatalf("change Email mismatch: %+v", got2)
+	}
+}
+
+// mustEmailBody marshals an Email value and strips the WBXML header plus
+// the AirSync.ApplicationData wrapper, returning just the bytes that would
+// appear inside ApplicationData on the wire.
+func mustEmailBody(t *testing.T, e *eas.Email) []byte {
+	t.Helper()
+	data, err := wbxml.Marshal(e)
+	if err != nil {
+		t.Fatalf("marshal email: %v", err)
+	}
+	dec := wbxml.NewDecoder(bytes.NewReader(data))
+	if _, err := dec.ReadHeader(); err != nil {
+		t.Fatalf("read header: %v", err)
+	}
+	tok, err := dec.NextToken()
+	if err != nil {
+		t.Fatalf("next token: %v", err)
+	}
+	if tok.Kind != wbxml.KindTag {
+		t.Fatalf("expected tag, got %s", tok.Kind)
+	}
+	body, err := dec.CaptureRaw(tok.HasContent)
+	if err != nil {
+		t.Fatalf("capture raw: %v", err)
+	}
+	return body
+}
+
+// SPEC: MS-ASCMD/sync.typed
+func TestSyncTyped_Email(t *testing.T) {
+	in := []eas.Email{
+		{Subject: "first", From: "a@example.com", To: "b@example.com"},
+		{Subject: "second", From: "c@example.com", To: "d@example.com"},
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req eas.SyncRequest
+		decodeWBXML(t, r, &req)
+		adds := make([]eas.SyncAdd, 0, len(in))
+		for i, e := range in {
+			adds = append(adds, eas.SyncAdd{
+				ServerID: serverIDFor(i),
+				ApplicationData: &wbxml.RawElement{
+					Page:  wbxml.PageAirSync,
+					Bytes: mustEmailBody(t, &e),
+				},
+			})
+		}
+		writeWBXML(t, w, &eas.SyncResponse{
+			Status: int32(eas.SyncStatusSuccess),
+			Collections: eas.SyncCollections{
+				Collection: []eas.SyncCollection{{
+					SyncKey:      "S-2",
+					CollectionID: "1",
+					Class:        "Email",
+					Status:       int32(eas.SyncStatusSuccess),
+					Commands:     &eas.SyncCommands{Add: adds},
+				}},
+			},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	c := newTestClient(t, srv)
+	resp, err := SyncTyped[eas.Email](context.Background(), c, "user@example.com", &eas.SyncRequest{
+		Collections: eas.SyncCollections{
+			Collection: []eas.SyncCollection{{SyncKey: "0", CollectionID: "1", GetChanges: 1}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("SyncTyped: %v", err)
+	}
+	if len(resp.Collections) != 1 {
+		t.Fatalf("collections: %d", len(resp.Collections))
+	}
+	col := resp.Collections[0]
+	if col.Class != "Email" || col.SyncKey != "S-2" {
+		t.Fatalf("collection metadata: %+v", col)
+	}
+	if len(col.Add) != len(in) {
+		t.Fatalf("Add count = %d, want %d", len(col.Add), len(in))
+	}
+	for i, item := range col.Add {
+		if item.ApplicationData == nil {
+			t.Fatalf("Add[%d] ApplicationData nil", i)
+		}
+		if item.ApplicationData.Subject != in[i].Subject {
+			t.Fatalf("Add[%d] Subject %q, want %q", i, item.ApplicationData.Subject, in[i].Subject)
+		}
+	}
+}
+
+func serverIDFor(i int) string {
+	return "1:" + string(rune('0'+i))
 }
 
 // SPEC: MS-ASCMD/ping.response

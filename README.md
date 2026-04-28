@@ -49,7 +49,12 @@ if _, err := c.Provision(ctx, "user@example.com"); err != nil { /* handle */ }
 ### Sync new e-mails from the inbox
 
 ```go
-import "github.com/remdev/go-activesync/eas"
+import (
+    "log"
+
+    "github.com/remdev/go-activesync/client"
+    "github.com/remdev/go-activesync/eas"
+)
 
 initial, _ := c.Sync(ctx, user, &eas.SyncRequest{
     Collections: eas.SyncCollections{
@@ -58,7 +63,7 @@ initial, _ := c.Sync(ctx, user, &eas.SyncRequest{
 })
 syncKey := initial.Collections.Collection[0].SyncKey
 
-resp, _ := c.Sync(ctx, user, &eas.SyncRequest{
+resp, _ := client.SyncTyped[eas.Email](ctx, c, user, &eas.SyncRequest{
     Collections: eas.SyncCollections{
         Collection: []eas.SyncCollection{{
             SyncKey:      syncKey,
@@ -69,12 +74,19 @@ resp, _ := c.Sync(ctx, user, &eas.SyncRequest{
     },
 })
 
-for _, col := range resp.Collections.Collection {
-    for _, add := range col.Commands.Add {
-        // add.ApplicationData → typed eas.Email
+for _, col := range resp.Collections {
+    for _, add := range col.Add {
+        if add.ApplicationData == nil {
+            continue
+        }
+        log.Printf("new mail %s: %s", add.ServerID, add.ApplicationData.Subject)
     }
 }
 ```
+
+For mixed-class collections, call `c.Sync` directly and use the
+`SyncAdd.Email()` / `Appointment()` / `Contact()` / `Task()` helpers, or
+project a single collection with `eas.NewTypedSyncResponse[T]`.
 
 ### Long-poll for changes with Ping
 
@@ -119,6 +131,7 @@ Implemented and covered by the test suite:
 | Auth            | HTTP Basic; pluggable `Authenticator` interface                           |
 | Provisioning    | Two-pass MS-ASPROV with auto re-provision on Status 142/143               |
 | Commands        | `Provision`, `FolderSync`, `Sync`, `Ping`                                 |
+| Typed Sync      | `client.SyncTyped[T]`, `eas.UnmarshalApplicationData[T]`, four helpers    |
 | PIM data models | `MS-ASEMAIL`, `MS-ASCAL`, `MS-ASCNTC`, `MS-ASTASK`                        |
 | Stores          | In-memory `PolicyStore` and `SyncStateStore`; pluggable interfaces        |
 | Hardening       | Bounded decoder allocations + `FuzzDecode` over the WBXML reader          |

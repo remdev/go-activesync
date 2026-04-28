@@ -52,6 +52,11 @@ MS-ASWBXML/marshal.omitempty,MS-ASWBXML,§2.1.2.1,Marshal honours the ;omitempty
 MS-ASWBXML/marshal.opaque,MS-ASWBXML,§2.1.2.1,Marshal honours the ;opaque option and emits the field value as OPAQUE,required
 MS-ASWBXML/marshal.slice,MS-ASWBXML,§2.1.2.1,Marshal emits one element per slice entry preserving order,required
 MS-ASWBXML/marshal.roundtrip,MS-ASWBXML,§2.1.2.1,Marshal followed by Unmarshal reproduces the input struct verbatim including nested page changes,required
+MS-ASWBXML/marshal.raw,MS-ASWBXML,§2.1.2.1,Marshal honours the ;raw option carrying RawElement bodies through round-trip,required
+MS-ASWBXML/marshal.raw-page,MS-ASWBXML,§2.1.2.1,RawElement preserves active code-page state for the next sibling element,required
+MS-ASCMD/sync.applicationdata.raw,MS-ASCMD,§2.2.2.20,Sync ApplicationData is carried as an opaque RawElement in SyncAdd and SyncChange,required
+MS-ASCMD/sync.applicationdata.typed,MS-ASCMD,§2.2.2.20,Typed convenience helpers decode ApplicationData into Email/Appointment/Contact/Task,required
+MS-ASCMD/sync.typed,MS-ASCMD,§2.2.2.20,SyncTyped[T] generic wrapper projects SyncResponse into typed Add/Change/Delete items,required
 MS-ASWBXML/decoder.fuzz,MS-ASWBXML,§2.1.2.1,Decoder must not panic on any byte input regardless of malformed structure,required
 MS-ASHTTP/request.path,MS-ASHTTP,§2.2.1,Request line uses POST /Microsoft-Server-ActiveSync,required
 MS-ASHTTP/query.base64.layout,MS-ASHTTP,§2.2.1.1.1.1,"Base64 query bytes layout: ProtocolVersion (1B); CommandCode (1B); Locale little-endian (2B); DeviceID len-prefixed; PolicyKey len-prefixed; DeviceType len-prefixed; Params",required
