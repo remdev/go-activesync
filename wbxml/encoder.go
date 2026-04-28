@@ -70,3 +70,33 @@ func (e *Encoder) Opaque(b []byte) error {
 	_, err := e.w.Write(b)
 	return err
 }
+
+// ForceSwitchPage emits a SWITCH_PAGE token to p and updates the encoder's
+// active page. Unlike StartTag, the token is emitted unconditionally so
+// callers can align the encoder state with externally produced raw bytes
+// before calling WriteRaw.
+func (e *Encoder) ForceSwitchPage(p byte) error {
+	if _, ok := PageByID(p); !ok {
+		return fmt.Errorf("wbxml: unknown code page %d", p)
+	}
+	if _, err := e.w.Write([]byte{SwitchPage, p}); err != nil {
+		return err
+	}
+	e.page = p
+	e.pageInit = true
+	return nil
+}
+
+// WriteRaw writes b to the underlying stream verbatim. After the call the
+// encoder's active page is marked as unknown, so the next StartTag is
+// guaranteed to be preceded by a SWITCH_PAGE. b is expected to be a
+// well-formed sequence of WBXML tokens that does not contain a trailing END
+// for any caller-managed element; balancing those END tokens is the caller's
+// responsibility.
+func (e *Encoder) WriteRaw(b []byte) error {
+	if _, err := e.w.Write(b); err != nil {
+		return err
+	}
+	e.pageInit = false
+	return nil
+}

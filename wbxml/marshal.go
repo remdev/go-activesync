@@ -86,6 +86,7 @@ type tagSpec struct {
 	tagName   string
 	omitempty bool
 	opaque    bool
+	raw       bool
 }
 
 type fieldSpec struct {
@@ -160,13 +161,20 @@ func parseTag(raw string) (tagSpec, error) {
 			out.omitempty = true
 		case "opaque":
 			out.opaque = true
+		case "raw":
+			out.raw = true
 		case "":
 		default:
 			return tagSpec{}, fmt.Errorf("unknown wbxml option %q", opt)
 		}
 	}
+	if out.raw && out.opaque {
+		return tagSpec{}, fmt.Errorf("wbxml options ,raw and ,opaque are mutually exclusive in %q", raw)
+	}
 	return out, nil
 }
+
+var rawElementType = reflect.TypeOf(RawElement{})
 
 // ------- encoding -------
 
@@ -194,6 +202,9 @@ func encodeStruct(enc *Encoder, v reflect.Value, info *structInfo, self *tagSpec
 }
 
 func encodeField(enc *Encoder, v reflect.Value, fs *fieldSpec) error {
+	if fs.raw {
+		return encodeRawField(enc, v, fs)
+	}
 	// Slices of struct or scalar produce one element per entry.
 	if v.Kind() == reflect.Slice && v.Type().Elem().Kind() != reflect.Uint8 {
 		for i := 0; i < v.Len(); i++ {
@@ -400,6 +411,9 @@ func decodeStruct(dec *Decoder, v reflect.Value, info *structInfo, hasContent bo
 }
 
 func decodeField(dec *Decoder, fv reflect.Value, fs *fieldSpec, openTok Token) error {
+	if fs.raw {
+		return decodeRawField(dec, fv, fs, openTok)
+	}
 	if fv.Kind() == reflect.Slice && fv.Type().Elem().Kind() != reflect.Uint8 {
 		elemType := fv.Type().Elem()
 		isPtr := elemType.Kind() == reflect.Pointer
@@ -548,6 +562,83 @@ func assignScalar(v reflect.Value, s string) error {
 		return fmt.Errorf("wbxml: cannot assign string to %s", v.Kind())
 	}
 	return nil
+}
+
+// encodeRawField emits a *RawElement (or RawElement) field. The element body
+// is re-aligned to RawElement.Page via Encoder.ForceSwitchPage so that the
+// raw bytes can be written verbatim regardless of which page was active
+// before. After the body the encoder's page is marked as unknown by
+// Encoder.WriteRaw, so the next sibling is preceded by a SWITCH_PAGE.
+func encodeRawField(enc *Encoder, v reflect.Value, fs *fieldSpec) error {
+	var raw *RawElement
+	switch v.Kind() {
+	case reflect.Pointer:
+		if v.Type().Elem() != rawElementType {
+			return fmt.Errorf("wbxml: ,raw field %s.%s must be *RawElement, got %s", fs.pageName, fs.tagName, v.Type())
+		}
+		if v.IsNil() {
+			if fs.omitempty {
+				return nil
+			}
+			return enc.StartTag(fs.page, fs.identity, false, false)
+		}
+		raw = v.Interface().(*RawElement)
+	case reflect.Struct:
+		if v.Type() != rawElementType {
+			return fmt.Errorf("wbxml: ,raw field %s.%s must be RawElement, got %s", fs.pageName, fs.tagName, v.Type())
+		}
+		raw = v.Addr().Interface().(*RawElement)
+	default:
+		return fmt.Errorf("wbxml: ,raw field %s.%s must be RawElement or *RawElement, got %s", fs.pageName, fs.tagName, v.Type())
+	}
+	if len(raw.Bytes) == 0 {
+		if fs.omitempty {
+			return nil
+		}
+		return enc.StartTag(fs.page, fs.identity, false, false)
+	}
+	if err := enc.StartTag(fs.page, fs.identity, false, true); err != nil {
+		return err
+	}
+	// Align the encoder's active page with raw.Page only when needed: emitting
+	// an unconditional SWITCH_PAGE would prevent byte-identity round trips for
+	// RawElement values where the active page was already correct.
+	if !enc.pageInit || enc.page != raw.Page {
+		if err := enc.ForceSwitchPage(raw.Page); err != nil {
+			return err
+		}
+	}
+	if err := enc.WriteRaw(raw.Bytes); err != nil {
+		return err
+	}
+	return enc.EndTag()
+}
+
+// decodeRawField captures the verbatim wire content of an open element into
+// a *RawElement (or RawElement) field. The active code page at the moment of
+// the open tag is recorded in RawElement.Page.
+func decodeRawField(dec *Decoder, fv reflect.Value, fs *fieldSpec, openTok Token) error {
+	page := openTok.Page
+	body, err := dec.CaptureRaw(openTok.HasContent)
+	if err != nil {
+		return err
+	}
+	switch fv.Kind() {
+	case reflect.Pointer:
+		if fv.Type().Elem() != rawElementType {
+			return fmt.Errorf("wbxml: ,raw field %s.%s must be *RawElement, got %s", fs.pageName, fs.tagName, fv.Type())
+		}
+		fv.Set(reflect.ValueOf(&RawElement{Page: page, Bytes: body}))
+		return nil
+	case reflect.Struct:
+		if fv.Type() != rawElementType {
+			return fmt.Errorf("wbxml: ,raw field %s.%s must be RawElement, got %s", fs.pageName, fs.tagName, fv.Type())
+		}
+		fv.Set(reflect.ValueOf(RawElement{Page: page, Bytes: body}))
+		return nil
+	default:
+		return fmt.Errorf("wbxml: ,raw field %s.%s must be RawElement or *RawElement, got %s", fs.pageName, fs.tagName, fv.Type())
+	}
 }
 
 func skipElement(dec *Decoder, hasContent bool) error {
