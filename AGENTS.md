@@ -63,6 +63,9 @@ sprinkling suppressions.
 
 - Module path: `github.com/remdev/go-activesync`. Do not introduce other
   paths in imports, examples, or docs.
+- Append new exported fields at the **end** of configuration structs (for
+  example `client.Config`) so positional composite literals in downstream code
+  remain compatible across minor updates.
 - Commit author / committer is governed by the local git config. Do not
   rewrite history that has already been pushed to `origin`.
 

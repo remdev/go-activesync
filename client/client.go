@@ -28,16 +28,17 @@ type Client struct {
 	ProtocolVersion string
 	AcceptLanguage  string
 
+	PolicyStore    PolicyStore
+	SyncStateStore SyncStateStore
+
 	// ExtraHeaders are merged into each request after mandatory headers without
-	// overwriting keys already set (see Config.ExtraHeaders).
+	// overwriting keys already set (see Config.ExtraHeaders). Do not mutate this
+	// map after New while the Client is in use; concurrent writes race with requests.
 	ExtraHeaders http.Header
 
 	// ForceHTTP11 reflects the config flag; when HTTPClient was supplied to New
 	// the transport is never altered and this bit is informational only.
 	ForceHTTP11 bool
-
-	PolicyStore    PolicyStore
-	SyncStateStore SyncStateStore
 }
 
 // Config bundles the values required to construct a Client.
@@ -60,10 +61,16 @@ type Config struct {
 
 	AcceptLanguage string
 
+	PolicyStore    PolicyStore
+	SyncStateStore SyncStateStore
+
 	// ExtraHeaders optional integrator headers (device model, OS, or other
 	// vendor expectations). They are merged after mandatory headers and never
 	// replace keys the client already set; device model/OS are not separate
 	// Config fields because MS-ASHTTP only standardizes the query DeviceType.
+	//
+	// Avoid mutating this header map after passing Config to New if other
+	// goroutines still hold a reference to it; New clones into the Client when non-empty.
 	ExtraHeaders http.Header
 
 	// ForceHTTP11, when true and HTTPClient is nil, builds an HTTP client whose
@@ -71,9 +78,6 @@ type Config struct {
 	// TLSNextProto to a non-nil empty map. When HTTPClient is non-nil,
 	// ForceHTTP11 is ignored and the caller's transport is not modified.
 	ForceHTTP11 bool
-
-	PolicyStore    PolicyStore
-	SyncStateStore SyncStateStore
 }
 
 // New returns a Client populated with sensible defaults for any unset
@@ -97,9 +101,9 @@ func New(cfg Config) (*Client, error) {
 		Locale:          cfg.Locale,
 		ProtocolVersion: eas.ProtocolVersion,
 		AcceptLanguage:  cfg.AcceptLanguage,
-		ForceHTTP11:     cfg.ForceHTTP11,
 		PolicyStore:     cfg.PolicyStore,
 		SyncStateStore:  cfg.SyncStateStore,
+		ForceHTTP11:     cfg.ForceHTTP11,
 	}
 	if len(cfg.ExtraHeaders) > 0 {
 		c.ExtraHeaders = cfg.ExtraHeaders.Clone()
@@ -115,7 +119,9 @@ func New(cfg Config) (*Client, error) {
 		}
 		tr := dt.Clone()
 		tr.TLSNextProto = make(map[string]func(authority string, c *tls.Conn) http.RoundTripper)
-		c.HTTPClient = &http.Client{Transport: tr}
+		hc := *http.DefaultClient
+		hc.Transport = tr
+		c.HTTPClient = &hc
 	default:
 		c.HTTPClient = http.DefaultClient
 	}
