@@ -918,6 +918,30 @@ func TestDecoder_CaptureRaw_StrIExceedsLimit(t *testing.T) {
 }
 
 // SPEC: MS-ASWBXML/marshal.raw
+// TestDecoder_CaptureRaw_StrIBoundary verifies the STR_I cap is exact:
+// MaxInlineStringSize bytes are accepted, MaxInlineStringSize+1 bytes are
+// rejected before the extra byte is appended (no off-by-one).
+func TestDecoder_CaptureRaw_StrIBoundary(t *testing.T) {
+	prev := MaxInlineStringSize
+	MaxInlineStringSize = 4
+	defer func() { MaxInlineStringSize = prev }()
+
+	atLimit := append([]byte{StrI}, []byte("aaaa")...)
+	atLimit = append(atLimit, 0x00, End)
+	d := NewDecoder(bytes.NewReader(atLimit))
+	if _, err := d.CaptureRaw(true); err != nil {
+		t.Fatalf("at-limit STR_I should pass, got %v", err)
+	}
+
+	overLimit := append([]byte{StrI}, []byte("aaaaa")...)
+	overLimit = append(overLimit, 0x00, End)
+	d2 := NewDecoder(bytes.NewReader(overLimit))
+	if _, err := d2.CaptureRaw(true); err == nil {
+		t.Fatal("over-limit STR_I should fail")
+	}
+}
+
+// SPEC: MS-ASWBXML/marshal.raw
 func TestDecoder_CaptureRaw_StrTAndOpaque(t *testing.T) {
 	// StrT 0x83 + offset 5 (mb_u_int32 single byte), then END for outer.
 	d := NewDecoder(bytes.NewReader([]byte{StrT, 0x05, End}))
