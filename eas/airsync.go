@@ -1,5 +1,7 @@
 package eas
 
+import "github.com/remdev/go-activesync/wbxml"
+
 // SyncRequest is the MS-ASCMD Sync command request payload.
 type SyncRequest struct {
 	XMLName     struct{}        `wbxml:"AirSync.Sync"`
@@ -60,16 +62,22 @@ type SyncCommands struct {
 }
 
 // SyncAdd carries a server-pushed addition or a client-side new item.
+//
+// ApplicationData is left as a raw WBXML element because the concrete payload
+// type (Email, Appointment, Contact, Task, …) depends on the collection's
+// Class. Use the convenience methods on SyncAdd / SyncChange (Email,
+// Appointment, Contact, Task) or UnmarshalApplicationData[T] to decode the
+// payload into a typed value.
 type SyncAdd struct {
-	ServerID        string  `wbxml:"AirSync.ServerId,omitempty"`
-	ClientID        string  `wbxml:"AirSync.ClientId,omitempty"`
-	ApplicationData *AppRaw `wbxml:"AirSync.ApplicationData,omitempty"`
+	ServerID        string            `wbxml:"AirSync.ServerId,omitempty"`
+	ClientID        string            `wbxml:"AirSync.ClientId,omitempty"`
+	ApplicationData *wbxml.RawElement `wbxml:"AirSync.ApplicationData,omitempty,raw"`
 }
 
 // SyncChange carries an item modification.
 type SyncChange struct {
-	ServerID        string  `wbxml:"AirSync.ServerId"`
-	ApplicationData *AppRaw `wbxml:"AirSync.ApplicationData,omitempty"`
+	ServerID        string            `wbxml:"AirSync.ServerId"`
+	ApplicationData *wbxml.RawElement `wbxml:"AirSync.ApplicationData,omitempty,raw"`
 }
 
 // SyncDelete carries an item deletion notification.
@@ -81,11 +89,3 @@ type SyncDelete struct {
 type SyncFetch struct {
 	ServerID string `wbxml:"AirSync.ServerId"`
 }
-
-// AppRaw is an opaque carrier for AirSync.ApplicationData.
-//
-// Real domain types (Email/Appointment/Contact/Task) marshal independently
-// from AirSync.ApplicationData; for command-level round trips we only need
-// the wrapper element to be preserved. Concrete decoding is done by the
-// caller after extracting the raw bytes if needed.
-type AppRaw struct{}
