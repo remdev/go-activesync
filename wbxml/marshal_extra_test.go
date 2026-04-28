@@ -871,6 +871,19 @@ func TestDecoder_CaptureRaw_TruncatedStrI(t *testing.T) {
 }
 
 // SPEC: MS-ASWBXML/marshal.raw
+func TestDecoder_CaptureRaw_StrIExceedsLimit(t *testing.T) {
+	prev := MaxInlineStringSize
+	MaxInlineStringSize = 4
+	defer func() { MaxInlineStringSize = prev }()
+	stream := append([]byte{StrI}, []byte("aaaaaaaa")...)
+	stream = append(stream, 0x00, End)
+	d := NewDecoder(bytes.NewReader(stream))
+	if _, err := d.CaptureRaw(true); err == nil {
+		t.Fatal("expected STR_I limit error")
+	}
+}
+
+// SPEC: MS-ASWBXML/marshal.raw
 func TestDecoder_CaptureRaw_StrTAndOpaque(t *testing.T) {
 	// StrT 0x83 + offset 5 (mb_u_int32 single byte), then END for outer.
 	d := NewDecoder(bytes.NewReader([]byte{StrT, 0x05, End}))

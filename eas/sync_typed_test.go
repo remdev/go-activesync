@@ -1,10 +1,18 @@
 package eas
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/remdev/go-activesync/wbxml"
 )
+
+// SPEC: MS-ASCMD/sync.typed
+func TestNewTypedSyncResponse_NilInput(t *testing.T) {
+	if _, err := NewTypedSyncResponse[Email](nil); !errors.Is(err, ErrNilSyncResponse) {
+		t.Fatalf("nil resp: want ErrNilSyncResponse, got %v", err)
+	}
+}
 
 // SPEC: MS-ASCMD/sync.typed
 func TestNewTypedSyncResponse_EmptyAndDeletes(t *testing.T) {

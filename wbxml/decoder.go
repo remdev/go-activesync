@@ -200,6 +200,7 @@ func (d *Decoder) CaptureRaw(hasContent bool) ([]byte, error) {
 			buf = append(buf, End)
 		case StrI:
 			buf = append(buf, StrI)
+			strLen := 0
 			for {
 				c, err := d.r.ReadByte()
 				if err != nil {
@@ -211,6 +212,10 @@ func (d *Decoder) CaptureRaw(hasContent bool) ([]byte, error) {
 				buf = append(buf, c)
 				if c == 0x00 {
 					break
+				}
+				strLen++
+				if strLen > MaxInlineStringSize {
+					return nil, fmt.Errorf("wbxml: STR_I exceeds %d-byte limit", MaxInlineStringSize)
 				}
 			}
 		case StrT:

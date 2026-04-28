@@ -50,6 +50,8 @@ if _, err := c.Provision(ctx, "user@example.com"); err != nil { /* handle */ }
 
 ```go
 import (
+    "log"
+
     "github.com/remdev/go-activesync/client"
     "github.com/remdev/go-activesync/eas"
 )

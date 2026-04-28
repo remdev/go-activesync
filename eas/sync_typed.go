@@ -1,5 +1,12 @@
 package eas
 
+import "errors"
+
+// ErrNilSyncResponse is returned by NewTypedSyncResponse / SyncTyped when the
+// underlying *SyncResponse is nil. It allows callers to distinguish "the
+// transport handed us nothing" from a wbxml decoding error.
+var ErrNilSyncResponse = errors.New("eas: nil *SyncResponse")
+
 // TypedSyncResponse mirrors SyncResponse but exposes typed ApplicationData
 // values for callers that operate on a single payload class per Sync.
 //
@@ -42,6 +49,9 @@ type TypedItem[T any] struct {
 //
 // SPEC: MS-ASCMD/sync.typed
 func NewTypedSyncResponse[T any](resp *SyncResponse) (*TypedSyncResponse[T], error) {
+	if resp == nil {
+		return nil, ErrNilSyncResponse
+	}
 	out := &TypedSyncResponse[T]{Status: resp.Status}
 	for _, col := range resp.Collections.Collection {
 		tcol := TypedSyncCollection[T]{
