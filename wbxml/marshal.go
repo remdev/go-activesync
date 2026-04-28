@@ -587,7 +587,11 @@ func encodeRawField(enc *Encoder, v reflect.Value, fs *fieldSpec) error {
 		if v.Type() != rawElementType {
 			return fmt.Errorf("wbxml: ,raw field %s.%s must be RawElement, got %s", fs.pageName, fs.tagName, v.Type())
 		}
-		raw = v.Addr().Interface().(*RawElement)
+		// v may be unaddressable (e.g. when the caller passed a value, not a
+		// pointer, to Marshal); copy the RawElement out by value so we never
+		// rely on v.Addr() succeeding.
+		rawValue := v.Interface().(RawElement)
+		raw = &rawValue
 	default:
 		return fmt.Errorf("wbxml: ,raw field %s.%s must be RawElement or *RawElement, got %s", fs.pageName, fs.tagName, v.Type())
 	}

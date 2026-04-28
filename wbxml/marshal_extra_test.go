@@ -735,6 +735,26 @@ func TestMarshal_RawElement_ByValue(t *testing.T) {
 	}
 }
 
+// SPEC: MS-ASWBXML/marshal.raw
+// TestMarshal_RawElement_ByValue_NonAddressable verifies that a RawElement
+// value field marshals without panicking when the parent struct itself is
+// passed by value (i.e. unaddressable inside reflect).
+func TestMarshal_RawElement_ByValue_NonAddressable(t *testing.T) {
+	body := emailBodyBytes(t, "v")
+	in := rawByValue{AppData: RawElement{Page: PageAirSync, Bytes: body}}
+	data, err := Marshal(in)
+	if err != nil {
+		t.Fatalf("Marshal(value): %v", err)
+	}
+	var out rawByValue
+	if err := Unmarshal(data, &out); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if !bytes.Equal(out.AppData.Bytes, body) {
+		t.Fatalf("body mismatch")
+	}
+}
+
 type rawWrongPtrType struct {
 	XMLName struct{}    `wbxml:"AirSync.Sync"`
 	AppData *rawByValue `wbxml:"AirSync.ApplicationData,raw"`
@@ -867,6 +887,20 @@ func TestDecoder_CaptureRaw_TruncatedStrI(t *testing.T) {
 	d := NewDecoder(bytes.NewReader([]byte{StrI, 'a'}))
 	if _, err := d.CaptureRaw(true); err == nil {
 		t.Fatal("expected STR_I truncation error")
+	}
+}
+
+// SPEC: MS-ASWBXML/marshal.raw
+func TestDecoder_CaptureRaw_RawElementExceedsLimit(t *testing.T) {
+	prev := MaxRawElementSize
+	MaxRawElementSize = 4
+	defer func() { MaxRawElementSize = prev }()
+	// A flood of small tag bytes (each one statement-sized in buf) under the
+	// individual STR_I/OPAQUE caps but past the overall budget.
+	stream := []byte{0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, End}
+	d := NewDecoder(bytes.NewReader(stream))
+	if _, err := d.CaptureRaw(true); err == nil {
+		t.Fatal("expected raw-element limit error")
 	}
 }
 

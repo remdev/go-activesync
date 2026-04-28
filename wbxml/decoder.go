@@ -19,6 +19,13 @@ var MaxOpaqueSize uint32 = 64 << 20 // 64 MiB
 // string. The same rationale as MaxOpaqueSize applies.
 var MaxInlineStringSize = 16 << 20 // 16 MiB
 
+// MaxRawElementSize bounds the cumulative size of bytes captured by a single
+// Decoder.CaptureRaw call. Per-token caps (MaxOpaqueSize, MaxInlineStringSize)
+// already neutralise individual giant payloads; this cap additionally limits
+// the total buffer growth from a flood of small tokens or tags within one
+// element body. Exposed as a var so callers (and tests) may tune it.
+var MaxRawElementSize = 64 << 20 // 64 MiB
+
 // TokenKind classifies a logical WBXML token after SWITCH_PAGE handling.
 type TokenKind int
 
@@ -171,6 +178,12 @@ func (d *Decoder) CaptureRaw(hasContent bool) ([]byte, error) {
 		return nil, nil
 	}
 	var buf []byte
+	checkBudget := func() error {
+		if len(buf) > MaxRawElementSize {
+			return fmt.Errorf("wbxml: raw element exceeds %d-byte limit", MaxRawElementSize)
+		}
+		return nil
+	}
 	depth := 1
 	for depth > 0 {
 		b, err := d.r.ReadByte()
@@ -249,6 +262,9 @@ func (d *Decoder) CaptureRaw(hasContent bool) ([]byte, error) {
 			if TagHasContent(b) {
 				depth++
 			}
+		}
+		if err := checkBudget(); err != nil {
+			return nil, err
 		}
 	}
 	return buf, nil
