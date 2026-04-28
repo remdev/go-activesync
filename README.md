@@ -71,7 +71,10 @@ resp, _ := c.Sync(ctx, user, &eas.SyncRequest{
 
 for _, col := range resp.Collections.Collection {
     for _, add := range col.Commands.Add {
-        // add.ApplicationData → typed eas.Email
+        // add.ServerID identifies the message; add.ApplicationData is an
+        // opaque carrier in v0.x — see the "Typed Sync payloads" entry in
+        // the Roadmap below for the planned typed-decoding API.
+        _ = add.ServerID
     }
 }
 ```
@@ -129,6 +132,13 @@ Implemented and covered by the test suite:
 
 Out of scope for v0.x; tracked for future releases.
 
+- **Typed `Sync` payloads**: today `SyncCollection.Commands.Add[].ApplicationData`
+  is `*eas.AppRaw struct{}`, i.e. an opaque carrier — concrete `Email`,
+  `Appointment`, `Contact` and `Task` bodies are not surfaced by `c.Sync`.
+  Plan: add a `wbxml.RawElement` primitive so the decoder can preserve the
+  raw subtree, expose `SyncAdd.Email()/Appointment()/Contact()/Task()`
+  helpers for mixed-class responses, and provide a generic
+  `eas.SyncTyped[T]` wrapper for the common single-class case.
 - **Commands**: `SendMail`, `SmartReply`, `SmartForward`, `MeetingResponse`,
   `MoveItems`, `ItemOperations` (Fetch/EmptyFolderContents),
   `GetItemEstimate`, `Search`, `ResolveRecipients`, `ValidateCert`,
