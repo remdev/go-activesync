@@ -1,6 +1,7 @@
 # go-activesync
 
 [![CI](https://github.com/remdev/go-activesync/actions/workflows/ci.yml/badge.svg)](https://github.com/remdev/go-activesync/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/remdev/go-activesync?sort=semver&display_name=tag&label=release)](https://github.com/remdev/go-activesync/releases/latest)
 [![Go Reference](https://pkg.go.dev/badge/github.com/remdev/go-activesync.svg)](https://pkg.go.dev/github.com/remdev/go-activesync)
 [![Go Report Card](https://goreportcard.com/badge/github.com/remdev/go-activesync)](https://goreportcard.com/report/github.com/remdev/go-activesync)
 [![Go Version](https://img.shields.io/badge/go-1.26-00ADD8?logo=go)](go.mod)
