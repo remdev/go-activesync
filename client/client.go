@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -27,20 +28,50 @@ type Client struct {
 	ProtocolVersion string
 	AcceptLanguage  string
 
+	// ExtraHeaders are merged into each request after mandatory headers without
+	// overwriting keys already set (see Config.ExtraHeaders).
+	ExtraHeaders http.Header
+
+	// ForceHTTP11 reflects the config flag; when HTTPClient was supplied to New
+	// the transport is never altered and this bit is informational only.
+	ForceHTTP11 bool
+
 	PolicyStore    PolicyStore
 	SyncStateStore SyncStateStore
 }
 
 // Config bundles the values required to construct a Client.
 type Config struct {
-	BaseURL        string
-	HTTPClient     *http.Client
-	Auth           Authenticator
-	DeviceID       string
-	DeviceType     string
-	UserAgent      string
-	Locale         uint16
+	BaseURL    string
+	HTTPClient *http.Client
+	Auth       Authenticator
+
+	DeviceID string
+	// DeviceType is the device class in the MS-ASHTTP query (e.g. "SmartPhone").
+	// For an Outlook-style profile many servers expect DeviceType "Outlook".
+	DeviceType string
+
+	// UserAgent is sent as the mandatory User-Agent header.
+	UserAgent string
+
+	// Locale is the LCID placed in the binary query (little-endian uint16), for
+	// example 0x0409 (en-US) or 0x0419 (ru-RU).
+	Locale uint16
+
 	AcceptLanguage string
+
+	// ExtraHeaders optional integrator headers (device model, OS, or other
+	// vendor expectations). They are merged after mandatory headers and never
+	// replace keys the client already set; device model/OS are not separate
+	// Config fields because MS-ASHTTP only standardizes the query DeviceType.
+	ExtraHeaders http.Header
+
+	// ForceHTTP11, when true and HTTPClient is nil, builds an HTTP client whose
+	// transport clones http.DefaultTransport and disables HTTP/2 by setting
+	// TLSNextProto to a non-nil empty map. When HTTPClient is non-nil,
+	// ForceHTTP11 is ignored and the caller's transport is not modified.
+	ForceHTTP11 bool
+
 	PolicyStore    PolicyStore
 	SyncStateStore SyncStateStore
 }
@@ -59,7 +90,6 @@ func New(cfg Config) (*Client, error) {
 	}
 	c := &Client{
 		BaseURL:         cfg.BaseURL,
-		HTTPClient:      cfg.HTTPClient,
 		Auth:            cfg.Auth,
 		DeviceID:        cfg.DeviceID,
 		DeviceType:      cfg.DeviceType,
@@ -67,10 +97,26 @@ func New(cfg Config) (*Client, error) {
 		Locale:          cfg.Locale,
 		ProtocolVersion: eas.ProtocolVersion,
 		AcceptLanguage:  cfg.AcceptLanguage,
+		ForceHTTP11:     cfg.ForceHTTP11,
 		PolicyStore:     cfg.PolicyStore,
 		SyncStateStore:  cfg.SyncStateStore,
 	}
-	if c.HTTPClient == nil {
+	if len(cfg.ExtraHeaders) > 0 {
+		c.ExtraHeaders = cfg.ExtraHeaders.Clone()
+	}
+	switch {
+	case cfg.HTTPClient != nil:
+		c.HTTPClient = cfg.HTTPClient
+	case cfg.ForceHTTP11:
+		dt, ok := http.DefaultTransport.(*http.Transport)
+		if !ok {
+			c.HTTPClient = http.DefaultClient
+			break
+		}
+		tr := dt.Clone()
+		tr.TLSNextProto = make(map[string]func(authority string, c *tls.Conn) http.RoundTripper)
+		c.HTTPClient = &http.Client{Transport: tr}
+	default:
 		c.HTTPClient = http.DefaultClient
 	}
 	if c.UserAgent == "" {
@@ -163,6 +209,7 @@ func (c *Client) doOnce(ctx context.Context, cmd byte, user string, request, res
 		PolicyKey:       policyKey,
 		AcceptLanguage:  c.AcceptLanguage,
 	})
+	mergeExtraHeaders(req.Header, c.ExtraHeaders)
 	if c.Auth != nil {
 		if err := c.Auth.Apply(req); err != nil {
 			return fmt.Errorf("client: auth: %w", err)
