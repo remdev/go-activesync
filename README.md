@@ -104,23 +104,24 @@ if eas.PingHasChanges(resp.Status) {
 
 ### Outlook-like client profile
 
-Many servers key off `DeviceType` and `Locale` (LCID), and expect additional metadata via headers rather than MS-ASHTTP query fields. Use `DeviceType: "Outlook"` when emulating Outlook; set `Locale` to `0x0409` for en-US or `0x0419` for ru-RU. Device model, OS version, or other vendor-specific strings are not separate `Config` fields—supply them with `ExtraHeaders` so they merge after the mandatory headers without replacing `User-Agent`, `MS-ASProtocolVersion`, and other values the client sets. If you must avoid HTTP/2 to match an older appliance or proxy, pass `ForceHTTP11: true` with `HTTPClient: nil`; if you inject your own `HTTPClient`, tune its transport yourself (`ForceHTTP11` is ignored).
+Many servers key off the request query shape and Outlook-style device metadata. Use `QueryEncoding: client.QueryEncodingPlain` to send `Cmd=...&User=...&DeviceId=...&DeviceType=...`, `DeviceType: "Outlook"` when emulating Outlook, and `Locale: 0x0419` with `AcceptLanguage: "ru-RU"` for ru-RU. First-class device profile fields are sent as `X-MS-Device*` headers; keep `ExtraHeaders` for integration-specific headers that are not modeled directly. If you must avoid HTTP/2 to match an older appliance or proxy, pass `ForceHTTP11: true` with `HTTPClient: nil`; if you inject your own `HTTPClient`, tune its transport yourself (`ForceHTTP11` is ignored).
 
 ```go
-import "net/http"
-
 _, err := client.New(client.Config{
-    BaseURL:    ad.URL,
-    Auth:       &client.BasicAuth{Username: "user@example.com", Password: "pass"},
-    DeviceID:   "stable-device-id",
-    DeviceType: "Outlook",
-    Locale:     0x0409,
-    UserAgent:  "Microsoft Office/16.0 (Windows NT 10.0; Microsoft Outlook 16.0.1)",
-    ExtraHeaders: http.Header{
-        "X-MS-Device-MachineName": []string{"WORKSTATION1"},
-        "X-OS-Type":               []string{"Windows"},
-    },
-    ForceHTTP11: true,
+    BaseURL:          ad.URL,
+    Auth:             &client.BasicAuth{Username: "user@example.com", Password: "pass"},
+    DeviceID:         "stable-device-id",
+    QueryEncoding:    client.QueryEncodingPlain,
+    DeviceType:       "Outlook",
+    DeviceModel:      "Outlook for iOS and Android",
+    DeviceOS:         "iOS 17.5",
+    DeviceOSLanguage: "ru",
+    Carrier:          "Apple",
+    DeviceUserAgent:  "Outlook-iOS-Android/1.0",
+    UserAgent:        "Outlook-iOS-Android/1.0 (iCloud, Exchange ActiveSync)",
+    AcceptLanguage:   "ru-RU",
+    Locale:           0x0419,
+    ForceHTTP11:      true,
 })
 ```
 

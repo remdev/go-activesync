@@ -134,6 +134,86 @@ func TestProvision_TwoPhase(t *testing.T) {
 	}
 }
 
+// SPEC: MS-ASHTTP/client.query-encoding
+func TestProvision_QueryEncodingPlainUsesURIParameters(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req eas.ProvisionRequest
+		decodeWBXML(t, r, &req)
+		calls++
+
+		q := r.URL.Query()
+		if got := q.Get("Cmd"); got != "Provision" {
+			t.Errorf("Cmd = %q, want Provision", got)
+		}
+		if got := q.Get("User"); got != "user@example.com" {
+			t.Errorf("User = %q, want user@example.com", got)
+		}
+		if got := q.Get("DeviceId"); got != "PLAINDEV1" {
+			t.Errorf("DeviceId = %q, want PLAINDEV1", got)
+		}
+		if got := q.Get("DeviceType"); got != "Outlook" {
+			t.Errorf("DeviceType = %q, want Outlook", got)
+		}
+
+		switch calls {
+		case 1:
+			writeWBXML(t, w, &eas.ProvisionResponse{
+				Status: int32(eas.StatusSuccess),
+				Policies: eas.PoliciesResponse{
+					Policy: []eas.PolicyResponse{{
+						PolicyType: eas.PolicyTypeWBXML,
+						PolicyKey:  "plain-temp",
+						Status:     int32(eas.StatusSuccess),
+						Data: &eas.EASProvisionDoc{
+							DevicePasswordEnabled:              1,
+							MinDevicePasswordLength:            4,
+							MaxInactivityTimeDeviceLock:        900,
+							MaxDevicePasswordFailedAttempts:    8,
+							AllowSimpleDevicePassword:          1,
+							AllowStorageCard:                   1,
+							AllowCamera:                        1,
+							RequireDeviceEncryption:            0,
+							AlphanumericDevicePasswordRequired: 0,
+						},
+					}},
+				},
+			})
+		case 2:
+			writeWBXML(t, w, &eas.ProvisionResponse{
+				Status: int32(eas.StatusSuccess),
+				Policies: eas.PoliciesResponse{
+					Policy: []eas.PolicyResponse{{
+						PolicyType: eas.PolicyTypeWBXML,
+						PolicyKey:  "plain-final",
+						Status:     int32(eas.StatusSuccess),
+					}},
+				},
+			})
+		default:
+			http.Error(w, "unexpected call", 500)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	c, err := New(Config{
+		BaseURL:       srv.URL + EndpointPath,
+		HTTPClient:    srv.Client(),
+		DeviceID:      "PLAINDEV1",
+		DeviceType:    "Outlook",
+		QueryEncoding: QueryEncodingPlain,
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if _, err := c.Provision(context.Background(), "user@example.com"); err != nil {
+		t.Fatalf("Provision: %v", err)
+	}
+	if calls != 2 {
+		t.Errorf("calls = %d, want 2", calls)
+	}
+}
+
 // SPEC: MS-ASHTTP/client.profile.extra-headers
 func TestFolderSync_OutgoingExtraHeaders(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -165,6 +245,55 @@ func TestFolderSync_OutgoingExtraHeaders(t *testing.T) {
 		UserAgent:    "go-activesync-test/1.0",
 		Locale:       0x0409,
 		ExtraHeaders: extra,
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if _, err := c.FolderSync(context.Background(), "user@example.com", "0"); err != nil {
+		t.Fatalf("FolderSync: %v", err)
+	}
+}
+
+// SPEC: MS-ASHTTP/client.profile.device-headers
+func TestFolderSync_DeviceProfileHeaders(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req eas.FolderSyncRequest
+		decodeWBXML(t, r, &req)
+		want := map[string]string{
+			"X-MS-DeviceModel":       "Outlook for iOS and Android",
+			"X-MS-DeviceOS":          "iOS 17.5",
+			"X-MS-DeviceOSLanguage":  "ru",
+			"X-MS-DeviceCarrier":     "Apple",
+			"X-MS-DevicePhoneNumber": "+70000000000",
+			"X-MS-DeviceUserAgent":   "Outlook-iOS-Android/1.0",
+		}
+		for name, wantValue := range want {
+			if got := r.Header.Get(name); got != wantValue {
+				t.Errorf("%s = %q, want %q", name, got, wantValue)
+			}
+		}
+		writeWBXML(t, w, &eas.FolderSyncResponse{
+			Status:  int32(eas.StatusSuccess),
+			SyncKey: "FS-PROFILE",
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	extra := http.Header{
+		"X-MS-DeviceModel": []string{"should-not-override-first-class-field"},
+	}
+	c, err := New(Config{
+		BaseURL:          srv.URL + EndpointPath,
+		HTTPClient:       srv.Client(),
+		DeviceID:         "TESTDEVICE",
+		DeviceType:       "Outlook",
+		DeviceModel:      "Outlook for iOS and Android",
+		DeviceOS:         "iOS 17.5",
+		DeviceOSLanguage: "ru",
+		Carrier:          "Apple",
+		PhoneNumber:      "+70000000000",
+		DeviceUserAgent:  "Outlook-iOS-Android/1.0",
+		ExtraHeaders:     extra,
 	})
 	if err != nil {
 		t.Fatalf("New: %v", err)

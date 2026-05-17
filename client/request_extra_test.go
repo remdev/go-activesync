@@ -117,6 +117,9 @@ func TestQueryPlain_AllParamTags(t *testing.T) {
 		},
 	}
 	got := q.EncodePlain()
+	if wantPrefix := "Cmd=Sync&User=u&DeviceId=id&DeviceType=PC"; !strings.HasPrefix(got, wantPrefix) {
+		t.Fatalf("plain query prefix = %q, want prefix %q", got, wantPrefix)
+	}
 	for _, want := range []string{"User=u", "CollectionId=c", "CollectionName=cn", "ItemId=i",
 		"LongId=l", "ParentId=p", "Occurrence=o", "Options=opt", "SaveInSent=s",
 		"AttachmentName=a", "AcceptMultiPart=am"} {

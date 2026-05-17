@@ -39,6 +39,15 @@ type Client struct {
 	// ForceHTTP11 reflects the config flag; when HTTPClient was supplied to New
 	// the transport is never altered and this bit is informational only.
 	ForceHTTP11 bool
+
+	QueryEncoding QueryEncoding
+
+	DeviceModel      string
+	DeviceOS         string
+	DeviceOSLanguage string
+	Carrier          string
+	PhoneNumber      string
+	DeviceUserAgent  string
 }
 
 // Config bundles the values required to construct a Client.
@@ -56,7 +65,8 @@ type Config struct {
 	UserAgent string
 
 	// Locale is the LCID placed in the binary query (little-endian uint16), for
-	// example 0x0409 (en-US) or 0x0419 (ru-RU).
+	// example 0x0409 (en-US) or 0x0419 (ru-RU). Plain queries carry language
+	// preferences through Accept-Language instead of a locale field.
 	Locale uint16
 
 	AcceptLanguage string
@@ -64,10 +74,9 @@ type Config struct {
 	PolicyStore    PolicyStore
 	SyncStateStore SyncStateStore
 
-	// ExtraHeaders optional integrator headers (device model, OS, or other
-	// vendor expectations). They are merged after mandatory headers and never
-	// replace keys the client already set; device model/OS are not separate
-	// Config fields because MS-ASHTTP only standardizes the query DeviceType.
+	// ExtraHeaders optional integrator headers not modeled by first-class
+	// Config fields. They are merged after mandatory and device-profile headers
+	// and never replace keys the client already set.
 	//
 	// Avoid mutating this header map after passing Config to New if other
 	// goroutines still hold a reference to it; New clones into the Client when non-empty.
@@ -78,6 +87,18 @@ type Config struct {
 	// TLSNextProto to a non-nil empty map. When HTTPClient is non-nil,
 	// ForceHTTP11 is ignored and the caller's transport is not modified.
 	ForceHTTP11 bool
+
+	// QueryEncoding selects the MS-ASHTTP request URI format. The zero value
+	// defaults to QueryEncodingBase64 for compatibility with earlier releases.
+	QueryEncoding QueryEncoding
+
+	// Device profile fields are sent as optional X-MS-Device* headers when set.
+	DeviceModel      string
+	DeviceOS         string
+	DeviceOSLanguage string
+	Carrier          string
+	PhoneNumber      string
+	DeviceUserAgent  string
 }
 
 // New returns a Client populated with sensible defaults for any unset
@@ -92,18 +113,34 @@ func New(cfg Config) (*Client, error) {
 	if cfg.DeviceType == "" {
 		return nil, errors.New("client: DeviceType is required")
 	}
+	queryEncoding := cfg.QueryEncoding
+	if queryEncoding == "" {
+		queryEncoding = QueryEncodingBase64
+	}
+	switch queryEncoding {
+	case QueryEncodingBase64, QueryEncodingPlain:
+	default:
+		return nil, fmt.Errorf("client: unsupported QueryEncoding %q", cfg.QueryEncoding)
+	}
 	c := &Client{
-		BaseURL:         cfg.BaseURL,
-		Auth:            cfg.Auth,
-		DeviceID:        cfg.DeviceID,
-		DeviceType:      cfg.DeviceType,
-		UserAgent:       cfg.UserAgent,
-		Locale:          cfg.Locale,
-		ProtocolVersion: eas.ProtocolVersion,
-		AcceptLanguage:  cfg.AcceptLanguage,
-		PolicyStore:     cfg.PolicyStore,
-		SyncStateStore:  cfg.SyncStateStore,
-		ForceHTTP11:     cfg.ForceHTTP11,
+		BaseURL:          cfg.BaseURL,
+		Auth:             cfg.Auth,
+		DeviceID:         cfg.DeviceID,
+		DeviceType:       cfg.DeviceType,
+		UserAgent:        cfg.UserAgent,
+		Locale:           cfg.Locale,
+		ProtocolVersion:  eas.ProtocolVersion,
+		AcceptLanguage:   cfg.AcceptLanguage,
+		PolicyStore:      cfg.PolicyStore,
+		SyncStateStore:   cfg.SyncStateStore,
+		ForceHTTP11:      cfg.ForceHTTP11,
+		QueryEncoding:    queryEncoding,
+		DeviceModel:      cfg.DeviceModel,
+		DeviceOS:         cfg.DeviceOS,
+		DeviceOSLanguage: cfg.DeviceOSLanguage,
+		Carrier:          cfg.Carrier,
+		PhoneNumber:      cfg.PhoneNumber,
+		DeviceUserAgent:  cfg.DeviceUserAgent,
 	}
 	if len(cfg.ExtraHeaders) > 0 {
 		c.ExtraHeaders = cfg.ExtraHeaders.Clone()
@@ -197,11 +234,11 @@ func (c *Client) doOnce(ctx context.Context, cmd byte, user string, request, res
 	if user != "" {
 		q.Params = append(q.Params, QueryParam{Tag: ParamUser, Value: []byte(user)})
 	}
-	encoded, err := q.EncodeBase64()
+	encoded, plain, err := c.encodeQuery(q, user)
 	if err != nil {
 		return fmt.Errorf("client: encode query: %w", err)
 	}
-	urlStr, err := BuildURL(c.BaseURL, encoded, false)
+	urlStr, err := BuildURL(c.BaseURL, encoded, plain)
 	if err != nil {
 		return fmt.Errorf("client: build url: %w", err)
 	}
@@ -214,6 +251,14 @@ func (c *Client) doOnce(ctx context.Context, cmd byte, user string, request, res
 		UserAgent:       c.UserAgent,
 		PolicyKey:       policyKey,
 		AcceptLanguage:  c.AcceptLanguage,
+	})
+	ApplyDeviceProfileHeaders(req.Header, DeviceHeaderOptions{
+		DeviceModel:      c.DeviceModel,
+		DeviceOS:         c.DeviceOS,
+		DeviceOSLanguage: c.DeviceOSLanguage,
+		Carrier:          c.Carrier,
+		PhoneNumber:      c.PhoneNumber,
+		DeviceUserAgent:  c.DeviceUserAgent,
 	})
 	mergeExtraHeaders(req.Header, c.ExtraHeaders)
 	if c.Auth != nil {
@@ -244,6 +289,21 @@ func (c *Client) doOnce(ctx context.Context, cmd byte, user string, request, res
 		}
 	}
 	return nil
+}
+
+func (c *Client) encodeQuery(q Query, user string) (string, bool, error) {
+	switch c.QueryEncoding {
+	case "", QueryEncodingBase64:
+		encoded, err := q.EncodeBase64()
+		return encoded, false, err
+	case QueryEncodingPlain:
+		if user == "" {
+			return "", true, errors.New("plain query encoding requires user")
+		}
+		return q.EncodePlain(), true, nil
+	default:
+		return "", false, fmt.Errorf("unsupported QueryEncoding %q", c.QueryEncoding)
+	}
 }
 
 // globalStatus extracts a top-level Status field from a typed response, if
