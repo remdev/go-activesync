@@ -72,6 +72,8 @@ MS-ASHTTP/headers.accept-language,MS-ASHTTP,§2.2.2,Accept-Language header is ho
 MS-ASHTTP/auth.basic,MS-ASHTTP,§2.2.2,Authorization Basic header carries username:password base64-encoded,required
 MS-ASHTTP/store.policy,MS-ASHTTP,§2.2.2,PolicyStore Get/Set persist the current policy key across calls,required
 MS-ASHTTP/store.syncstate,MS-ASHTTP,§2.2.2,SyncStateStore Get/Set persist the current SyncKey per collection,required
+MS-ASHTTP/client.extra-headers-merge,MS-ASHTTP,§2.2.2,Optional integrator HTTP headers are merged after mandatory headers without overwriting keys already present on the request,required
+MS-ASHTTP/client.transport.force-http11,MS-ASHTTP,§2.2.1,When HTTPClient is nil and ForceHTTP11 is set the default Transport disables HTTP/2 ALPN via TLSNextProto for HTTPS interoperability,required
 MS-OXDISCO/request.schema,MS-OXDISCO,§3.1.5,POX request uses mobilesync requestschema 2006 and AcceptableResponseSchema is the matching responseschema,required
 MS-OXDISCO/request.path,MS-OXDISCO,§3.1.4,POST /autodiscover/autodiscover.xml as Content-Type text/xml UTF-8,required
 MS-OXDISCO/response.url,MS-OXDISCO,§3.1.5,Response Action/Settings/Server with Type MobileSync exposes the EAS endpoint URL,required
@@ -106,3 +108,5 @@ MS-ASCMD/ping.status.changes,MS-ASCMD,§2.2.1.13.6,Ping Status=2 indicates one o
 MS-ASCMD/global.status.codes,MS-ASCMD,§2.2.4,Global Status codes include 142 invalid policy; 143 invalid policy key; 144 invalid device id,required
 MS-ASCMD/retry.142,MS-ASCMD,§2.2.4,Status 142 triggers automatic re-provision with a fresh PolicyKey before retrying the original command,required
 MS-ASCMD/scenario.full,MS-ASCMD,§3.1,End-to-end Provision -> FolderSync -> Sync -> Ping scenario over HTTP exchanges WBXML payloads with the negotiated PolicyKey and SyncKey,required
+MS-ASHTTP/client.profile.extra-headers,MS-ASHTTP,§2.2.2,Config.ExtraHeaders are merged after mandatory MS-ASHTTP headers without overwriting any header key already present on the request,required
+MS-ASHTTP/client.profile.force-http11,MS-ASHTTP,§2.2.1,When HTTPClient is nil and ForceHTTP11 is true New configures a client transport cloned from DefaultTransport with TLSNextProto set to a non-nil empty map to disable HTTP/2,required

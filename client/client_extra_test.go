@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"errors"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -72,3 +73,51 @@ type errStore struct{}
 
 func (errStore) Get(context.Context) (string, error) { return "", errors.New("boom") }
 func (errStore) Set(context.Context, string) error   { return nil }
+
+// SPEC: MS-ASHTTP/client.profile.force-http11
+func TestNew_ForceHTTP11_DefaultTransportDisablesHTTP2(t *testing.T) {
+	c, err := New(Config{
+		BaseURL:     "http://example.invalid/Microsoft-Server-ActiveSync",
+		DeviceID:    "d",
+		DeviceType:  "t",
+		ForceHTTP11: true,
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	tr, ok := c.HTTPClient.Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("Transport type %T", c.HTTPClient.Transport)
+	}
+	if tr.TLSNextProto == nil {
+		t.Fatal("TLSNextProto is nil, want non-nil empty map")
+	}
+	if len(tr.TLSNextProto) != 0 {
+		t.Fatalf("TLSNextProto len = %d, want 0", len(tr.TLSNextProto))
+	}
+}
+
+// SPEC: MS-ASHTTP/client.profile.force-http11
+func TestNew_ForceHTTP11_CustomHTTPClientUnchanged(t *testing.T) {
+	base := &http.Transport{}
+	hc := &http.Client{Transport: base}
+	c, err := New(Config{
+		BaseURL:     "http://example.invalid/Microsoft-Server-ActiveSync",
+		HTTPClient:  hc,
+		DeviceID:    "d",
+		DeviceType:  "t",
+		ForceHTTP11: true,
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if c.HTTPClient != hc {
+		t.Fatal("HTTPClient replaced")
+	}
+	if c.HTTPClient.Transport != base {
+		t.Fatal("Transport replaced")
+	}
+	if base.TLSNextProto != nil {
+		t.Fatalf("custom transport TLSNextProto = %v, want nil", base.TLSNextProto)
+	}
+}

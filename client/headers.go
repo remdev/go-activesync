@@ -29,3 +29,30 @@ func ApplyMandatoryHeaders(h http.Header, opts HeaderOptions) {
 		h.Set("Accept-Language", opts.AcceptLanguage)
 	}
 }
+
+// mergeExtraHeaders merges src into dst for integrator-specific headers. Each
+// header name is normalized with http.CanonicalHeaderKey. If dst already
+// contains any value for that name, the entire key is skipped so mandatory
+// client headers cannot be overwritten. Otherwise every value from src for
+// that key is added with Add (preserving duplicates from src).
+func mergeExtraHeaders(dst, src http.Header) {
+	if len(src) == 0 {
+		return
+	}
+	grouped := make(map[string][]string)
+	for k, vals := range src {
+		if k == "" {
+			continue
+		}
+		ck := http.CanonicalHeaderKey(k)
+		grouped[ck] = append(grouped[ck], vals...)
+	}
+	for ck, vals := range grouped {
+		if len(dst.Values(ck)) > 0 {
+			continue
+		}
+		for _, v := range vals {
+			dst.Add(ck, v)
+		}
+	}
+}
