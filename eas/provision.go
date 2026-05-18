@@ -8,8 +8,28 @@ const PolicyTypeWBXML = "MS-EAS-Provisioning-WBXML"
 // element shape is used both for the initial download request and for the
 // acknowledgement step (MS-ASPROV §3.2.5.1).
 type ProvisionRequest struct {
-	XMLName  struct{}        `wbxml:"Provision.Provision"`
-	Policies PoliciesRequest `wbxml:"Provision.Policies"`
+	XMLName           struct{}           `wbxml:"Provision.Provision"`
+	DeviceInformation *DeviceInformation `wbxml:"Settings.DeviceInformation,omitempty"`
+	Policies          PoliciesRequest    `wbxml:"Provision.Policies"`
+}
+
+// DeviceInformation carries the Settings:DeviceInformation payload some
+// Exchange policies require during Provision (status 165).
+type DeviceInformation struct {
+	Set DeviceInformationSet `wbxml:"Settings.Set"`
+}
+
+// DeviceInformationSet is the Settings:Set content nested inside
+// DeviceInformation.
+type DeviceInformationSet struct {
+	Model          string `wbxml:"Settings.Model,omitempty"`
+	IMEI           string `wbxml:"Settings.IMEI,omitempty"`
+	FriendlyName   string `wbxml:"Settings.FriendlyName,omitempty"`
+	OS             string `wbxml:"Settings.OS,omitempty"`
+	OSLanguage     string `wbxml:"Settings.OSLanguage,omitempty"`
+	PhoneNumber    string `wbxml:"Settings.PhoneNumber,omitempty"`
+	UserAgent      string `wbxml:"Settings.UserAgent,omitempty"`
+	MobileOperator string `wbxml:"Settings.MobileOperator,omitempty"`
 }
 
 // PoliciesRequest wraps the Policy entries inside a ProvisionRequest.

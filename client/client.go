@@ -13,6 +13,8 @@ import (
 	"github.com/remdev/go-activesync/wbxml"
 )
 
+const defaultDeviceModel = "Outlook for iOS and Android"
+
 // Client is the high-level Exchange ActiveSync client. The zero value is not
 // useful; use New to construct a fully wired Client.
 type Client struct {
@@ -42,12 +44,14 @@ type Client struct {
 
 	QueryEncoding QueryEncoding
 
-	DeviceModel      string
-	DeviceOS         string
-	DeviceOSLanguage string
-	Carrier          string
-	PhoneNumber      string
-	DeviceUserAgent  string
+	DeviceModel        string
+	DeviceOS           string
+	DeviceOSLanguage   string
+	Carrier            string
+	PhoneNumber        string
+	DeviceUserAgent    string
+	DeviceFriendlyName string
+	DeviceIMEI         string
 }
 
 // Config bundles the values required to construct a Client.
@@ -92,13 +96,16 @@ type Config struct {
 	// defaults to QueryEncodingBase64 for compatibility with earlier releases.
 	QueryEncoding QueryEncoding
 
-	// Device profile fields are sent as optional X-MS-Device* headers when set.
-	DeviceModel      string
-	DeviceOS         string
-	DeviceOSLanguage string
-	Carrier          string
-	PhoneNumber      string
-	DeviceUserAgent  string
+	// Device profile fields are sent as X-MS-Device* headers and in the
+	// Provision DeviceInformation body.
+	DeviceModel        string
+	DeviceOS           string
+	DeviceOSLanguage   string
+	Carrier            string
+	PhoneNumber        string
+	DeviceUserAgent    string
+	DeviceFriendlyName string
+	DeviceIMEI         string
 }
 
 // New returns a Client populated with sensible defaults for any unset
@@ -123,24 +130,26 @@ func New(cfg Config) (*Client, error) {
 		return nil, fmt.Errorf("client: unsupported QueryEncoding %q", cfg.QueryEncoding)
 	}
 	c := &Client{
-		BaseURL:          cfg.BaseURL,
-		Auth:             cfg.Auth,
-		DeviceID:         cfg.DeviceID,
-		DeviceType:       cfg.DeviceType,
-		UserAgent:        cfg.UserAgent,
-		Locale:           cfg.Locale,
-		ProtocolVersion:  eas.ProtocolVersion,
-		AcceptLanguage:   cfg.AcceptLanguage,
-		PolicyStore:      cfg.PolicyStore,
-		SyncStateStore:   cfg.SyncStateStore,
-		ForceHTTP11:      cfg.ForceHTTP11,
-		QueryEncoding:    queryEncoding,
-		DeviceModel:      cfg.DeviceModel,
-		DeviceOS:         cfg.DeviceOS,
-		DeviceOSLanguage: cfg.DeviceOSLanguage,
-		Carrier:          cfg.Carrier,
-		PhoneNumber:      cfg.PhoneNumber,
-		DeviceUserAgent:  cfg.DeviceUserAgent,
+		BaseURL:            cfg.BaseURL,
+		Auth:               cfg.Auth,
+		DeviceID:           cfg.DeviceID,
+		DeviceType:         cfg.DeviceType,
+		UserAgent:          cfg.UserAgent,
+		Locale:             cfg.Locale,
+		ProtocolVersion:    eas.ProtocolVersion,
+		AcceptLanguage:     cfg.AcceptLanguage,
+		PolicyStore:        cfg.PolicyStore,
+		SyncStateStore:     cfg.SyncStateStore,
+		ForceHTTP11:        cfg.ForceHTTP11,
+		QueryEncoding:      queryEncoding,
+		DeviceModel:        cfg.DeviceModel,
+		DeviceOS:           cfg.DeviceOS,
+		DeviceOSLanguage:   cfg.DeviceOSLanguage,
+		Carrier:            cfg.Carrier,
+		PhoneNumber:        cfg.PhoneNumber,
+		DeviceUserAgent:    cfg.DeviceUserAgent,
+		DeviceFriendlyName: cfg.DeviceFriendlyName,
+		DeviceIMEI:         cfg.DeviceIMEI,
 	}
 	if len(cfg.ExtraHeaders) > 0 {
 		c.ExtraHeaders = cfg.ExtraHeaders.Clone()
@@ -164,6 +173,24 @@ func New(cfg Config) (*Client, error) {
 	}
 	if c.UserAgent == "" {
 		c.UserAgent = "go-activesync/0.1"
+	}
+	if c.DeviceModel == "" {
+		c.DeviceModel = defaultDeviceModel
+	}
+	if c.DeviceOS == "" {
+		c.DeviceOS = "iOS 17.5"
+	}
+	if c.DeviceOSLanguage == "" {
+		c.DeviceOSLanguage = "ru"
+	}
+	if c.Carrier == "" {
+		c.Carrier = "Apple"
+	}
+	if c.DeviceUserAgent == "" {
+		c.DeviceUserAgent = "Outlook-iOS-Android/1.0"
+	}
+	if c.DeviceFriendlyName == "" {
+		c.DeviceFriendlyName = c.DeviceModel
 	}
 	if c.Locale == 0 {
 		c.Locale = 0x0409
