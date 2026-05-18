@@ -58,6 +58,16 @@ type QueryParam struct {
 	Value []byte
 }
 
+// QueryEncoding selects the MS-ASHTTP request query representation.
+type QueryEncoding string
+
+const (
+	// QueryEncodingBase64 uses the compact binary query encoded as URL-safe base64.
+	QueryEncodingBase64 QueryEncoding = "base64"
+	// QueryEncodingPlain uses Cmd=...&User=...&DeviceId=...&DeviceType=... URI parameters.
+	QueryEncodingPlain QueryEncoding = "plain"
+)
+
 // Query is the abstract representation of the MS-ASHTTP request query, used
 // in both base64 (binary) and plain (URL key=value) encodings.
 type Query struct {
@@ -175,37 +185,53 @@ func ParseBase64(s string) (Query, error) {
 
 // EncodePlain returns the URL-encoded plain query (Cmd=Foo&User=...&...).
 func (q Query) EncodePlain() string {
-	v := url.Values{}
-	v.Set("Cmd", commandName(q.Cmd))
-	v.Set("DeviceId", q.DeviceID)
-	v.Set("DeviceType", q.DeviceType)
+	type pair struct {
+		name  string
+		value string
+	}
+	user := ""
+	params := make([]pair, 0, len(q.Params))
 	for _, p := range q.Params {
 		switch p.Tag {
 		case ParamUser:
-			v.Set("User", string(p.Value))
+			user = string(p.Value)
 		case ParamCollectionID:
-			v.Set("CollectionId", string(p.Value))
+			params = append(params, pair{"CollectionId", string(p.Value)})
 		case ParamCollectionName:
-			v.Set("CollectionName", string(p.Value))
+			params = append(params, pair{"CollectionName", string(p.Value)})
 		case ParamItemID:
-			v.Set("ItemId", string(p.Value))
+			params = append(params, pair{"ItemId", string(p.Value)})
 		case ParamLongID:
-			v.Set("LongId", string(p.Value))
+			params = append(params, pair{"LongId", string(p.Value)})
 		case ParamParentID:
-			v.Set("ParentId", string(p.Value))
+			params = append(params, pair{"ParentId", string(p.Value)})
 		case ParamOccurrence:
-			v.Set("Occurrence", string(p.Value))
+			params = append(params, pair{"Occurrence", string(p.Value)})
 		case ParamOptions:
-			v.Set("Options", string(p.Value))
+			params = append(params, pair{"Options", string(p.Value)})
 		case ParamSaveInSent:
-			v.Set("SaveInSent", string(p.Value))
+			params = append(params, pair{"SaveInSent", string(p.Value)})
 		case ParamAttachmentName:
-			v.Set("AttachmentName", string(p.Value))
+			params = append(params, pair{"AttachmentName", string(p.Value)})
 		case ParamAcceptMultipart:
-			v.Set("AcceptMultiPart", string(p.Value))
+			params = append(params, pair{"AcceptMultiPart", string(p.Value)})
 		}
 	}
-	return v.Encode()
+
+	parts := make([]string, 0, 4+len(params))
+	add := func(name, value string) {
+		parts = append(parts, url.QueryEscape(name)+"="+url.QueryEscape(value))
+	}
+	add("Cmd", commandName(q.Cmd))
+	if user != "" {
+		add("User", user)
+	}
+	add("DeviceId", q.DeviceID)
+	add("DeviceType", q.DeviceType)
+	for _, p := range params {
+		add(p.name, p.value)
+	}
+	return strings.Join(parts, "&")
 }
 
 func commandName(code byte) string {

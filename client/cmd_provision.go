@@ -14,6 +14,7 @@ import (
 // one. The active PolicyKey is persisted in the configured PolicyStore.
 func (c *Client) Provision(ctx context.Context, user string) (*eas.EASProvisionDoc, error) {
 	initial := eas.NewInitialRequest()
+	c.applyDeviceInformation(&initial)
 	var first eas.ProvisionResponse
 	if err := c.do(ctx, CmdProvision, user, &initial, &first); err != nil {
 		return nil, err
@@ -40,6 +41,7 @@ func (c *Client) Provision(ctx context.Context, user string) (*eas.EASProvisionD
 	}
 
 	ack := eas.NewAcknowledgeRequest(pol.PolicyKey, int32(eas.StatusSuccess))
+	c.applyDeviceInformation(&ack)
 	var second eas.ProvisionResponse
 	if err := c.do(ctx, CmdProvision, user, &ack, &second); err != nil {
 		return nil, err
@@ -61,4 +63,19 @@ func (c *Client) Provision(ctx context.Context, user string) (*eas.EASProvisionD
 		return nil, fmt.Errorf("provision: persist final policy key: %w", err)
 	}
 	return pol.Data, nil
+}
+
+func (c *Client) applyDeviceInformation(req *eas.ProvisionRequest) {
+	req.DeviceInformation = &eas.DeviceInformation{
+		Set: eas.DeviceInformationSet{
+			Model:          c.DeviceModel,
+			IMEI:           c.DeviceIMEI,
+			FriendlyName:   c.DeviceFriendlyName,
+			OS:             c.DeviceOS,
+			OSLanguage:     c.DeviceOSLanguage,
+			PhoneNumber:    c.PhoneNumber,
+			UserAgent:      c.DeviceUserAgent,
+			MobileOperator: c.Carrier,
+		},
+	}
 }

@@ -14,6 +14,16 @@ type HeaderOptions struct {
 	AcceptLanguage  string // optional, e.g. "en-US"
 }
 
+// DeviceHeaderOptions describes optional first-class device profile headers.
+type DeviceHeaderOptions struct {
+	DeviceModel      string
+	DeviceOS         string
+	DeviceOSLanguage string
+	Carrier          string
+	PhoneNumber      string
+	DeviceUserAgent  string
+}
+
 // ApplyMandatoryHeaders sets the mandatory MS-ASHTTP headers on h. Any
 // existing values for managed headers are overwritten so the contract is
 // deterministic for upstream code.
@@ -27,6 +37,28 @@ func ApplyMandatoryHeaders(h http.Header, opts HeaderOptions) {
 	}
 	if opts.AcceptLanguage != "" {
 		h.Set("Accept-Language", opts.AcceptLanguage)
+	}
+}
+
+// ApplyDeviceProfileHeaders sets optional device profile headers when present.
+func ApplyDeviceProfileHeaders(h http.Header, opts DeviceHeaderOptions) {
+	if opts.DeviceModel != "" {
+		h.Set("X-MS-DeviceModel", opts.DeviceModel)
+	}
+	if opts.DeviceOS != "" {
+		h.Set("X-MS-DeviceOS", opts.DeviceOS)
+	}
+	if opts.DeviceOSLanguage != "" {
+		h.Set("X-MS-DeviceOSLanguage", opts.DeviceOSLanguage)
+	}
+	if opts.Carrier != "" {
+		h.Set("X-MS-DeviceCarrier", opts.Carrier)
+	}
+	if opts.PhoneNumber != "" {
+		h.Set("X-MS-DevicePhoneNumber", opts.PhoneNumber)
+	}
+	if opts.DeviceUserAgent != "" {
+		h.Set("X-MS-DeviceUserAgent", opts.DeviceUserAgent)
 	}
 }
 

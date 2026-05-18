@@ -110,3 +110,7 @@ MS-ASCMD/retry.142,MS-ASCMD,§2.2.4,Status 142 triggers automatic re-provision w
 MS-ASCMD/scenario.full,MS-ASCMD,§3.1,End-to-end Provision -> FolderSync -> Sync -> Ping scenario over HTTP exchanges WBXML payloads with the negotiated PolicyKey and SyncKey,required
 MS-ASHTTP/client.profile.extra-headers,MS-ASHTTP,§2.2.2,Config.ExtraHeaders are merged after mandatory MS-ASHTTP headers without overwriting any header key already present on the request,required
 MS-ASHTTP/client.profile.force-http11,MS-ASHTTP,§2.2.1,When HTTPClient is nil and ForceHTTP11 is true New configures a client transport cloned from DefaultTransport with TLSNextProto set to a non-nil empty map to disable HTTP/2,required
+MS-ASHTTP/client.query-encoding,MS-ASHTTP,§2.2.1.1.1,Config.QueryEncoding selects base64 or plain text query encoding while defaulting to base64,required
+MS-ASHTTP/client.profile.device-headers,MS-ASHTTP,§2.2.2,Config device profile fields emit X-MS-DeviceModel; X-MS-DeviceOS; X-MS-DeviceOSLanguage; X-MS-DeviceCarrier; X-MS-DevicePhoneNumber; X-MS-DeviceUserAgent when set,required
+MS-ASCMD/status.165.device-information-required,MS-ASCMD,§2.2.4,Status 165 indicates the client must send DeviceInformation during Provision,required
+MS-ASPROV/provision.device-information,MS-ASPROV,§3.2.5.1,Provision requests carry Settings DeviceInformation with client model OS language user-agent and mobile operator metadata,required

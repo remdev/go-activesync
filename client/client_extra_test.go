@@ -35,6 +35,19 @@ func TestNew_RequiresFields(t *testing.T) {
 	}
 }
 
+// SPEC: MS-ASHTTP/client.query-encoding
+func TestNew_RejectsUnknownQueryEncoding(t *testing.T) {
+	_, err := New(Config{
+		BaseURL:       "http://example.invalid/Microsoft-Server-ActiveSync",
+		DeviceID:      "d",
+		DeviceType:    "t",
+		QueryEncoding: QueryEncoding("xml"),
+	})
+	if err == nil {
+		t.Fatal("expected unsupported QueryEncoding error")
+	}
+}
+
 // SPEC: MS-ASCMD/global.status.codes
 func TestGlobalStatus_AllResponses(t *testing.T) {
 	cases := []any{
